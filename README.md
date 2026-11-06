@@ -58,7 +58,36 @@ fly deploy
 
 Репозиторий подключен к приложению через интеграцию Fly.io (GitHub App): **каждый пуш в `main` автоматически деплоится** на Fly, статус виден в дашборде Fly и в разделе GitHub → Actions/Checks. Действий не требуется. Помните: деплой пересоздаёт машину — комнаты сбрасываются, деплойте между сессиями.
 
-## Деплой на VPS (интернет, автоматический HTTPS)
+## Деплой на Яндекс Cloud (грант для новых аккаунтов)
+
+ВМ в Yandex Cloud — это VPS с поминутной оплатой. Нужны: аккаунт Яндекс ID (консоль: console.yandex.cloud), платёжный аккаунт со стартовым грантом и домен с A-записью на IP ВМ.
+
+```bash
+# 1. Compute Cloud → Виртуальные машины → Создать ВМ:
+#    имя scrum-poker, образ Ubuntu 24.04, минимум 2 vCPU / 1–2 ГБ RAM,
+#    диск 10 ГБ network-hdd, публичный IP «Автоматически» (бесплатный динамический),
+#    в поле SSH-ключа — ваш ~/.ssh/id_ed25519.pub
+#    (ключ создать заранее: ssh-keygen -t ed25519)
+#    Если в сети включены группы безопасности — разрешить входящие 22, 80, 443.
+
+# 2. Подключение и Docker
+ssh -i ~/.ssh/id_ed25519 ubuntu@IP_ВМ
+curl -fsSL https://get.docker.com | sudo sh
+sudo usermod -aG docker $USER   # перелогиниться
+
+# 3. Код и запуск
+sudo apt update && sudo apt install -y git
+git clone https://github.com/yxTbJ/scrum-poker-kimi.git /opt/scrum-poker-kimi
+cd /opt/scrum-poker-kimi
+nano Caddyfile                 # poker.example.com → ваш домен
+docker compose -f docker-compose.prod.yml up -d --build
+```
+
+Проверка: `curl https://ваш-домен/api/health` → `{"ok":true}`. Обновления: `git pull && docker compose -f docker-compose.prod.yml up -d --build`.
+
+Нюансы: динамический IP сменится при пересоздании ВМ (для боевого домена берите статический IP, ~200 ₽/мес); остановленная ВМ не списывает CPU/RAM, но диск и IP оплачиваются; следите за расходом гранта в разделе «Биллинг → Гранты». Без домена можно быстро проверить по HTTP: `docker compose up -d --build` и открыть `http://IP:4000` (кнопка копирования ссылки без HTTPS работать не будет).
+
+
 
 Понадобятся: VPS с Ubuntu 24.04 (минимальный тарифа хватит) и домен с A-записью на IP сервера.
 
