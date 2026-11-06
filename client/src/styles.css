@@ -271,7 +271,86 @@ input:focus {
 .vote-name {
   font-size: 0.85rem;
   color: var(--muted);
-  margin-top: 0.25rem;
+  margin-top: 0.35rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.3rem;
+}
+
+/* --- Аватары --- */
+
+.avatar {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  overflow: hidden;
+  flex-shrink: 0;
+  user-select: none;
+  font-weight: 600;
+  color: #fff;
+}
+
+.avatar-bg {
+  position: absolute;
+  inset: 0;
+}
+
+.avatar-initials {
+  position: relative;
+  line-height: 1;
+}
+
+/* --- Диаграмма голосов --- */
+
+.chart {
+  margin: 1.5rem auto 0;
+  max-width: 460px;
+  text-align: left;
+}
+
+.chart h3 {
+  margin: 0 0 0.6rem;
+  font-size: 0.95rem;
+  color: var(--muted);
+  text-align: center;
+}
+
+.chart-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-bottom: 0.4rem;
+}
+
+.chart-value {
+  width: 36px;
+  text-align: right;
+  font-weight: 600;
+}
+
+.chart-track {
+  flex: 1;
+  height: 18px;
+  background: var(--bg);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.chart-bar {
+  height: 100%;
+  min-width: 6px;
+  background: var(--accent);
+  border-radius: 6px;
+  transition: width 0.3s ease;
+}
+
+.chart-count {
+  width: 48px;
+  font-size: 0.85rem;
+  color: var(--muted);
 }
 
 .average {
@@ -284,16 +363,19 @@ input:focus {
   margin: 1.5rem 0 0;
   padding: 0;
   display: flex;
-  flex-direction: column;
-  gap: 0.4rem;
+  flex-wrap: wrap;
+  gap: 0.4rem 1.25rem;
 }
 
 .participants li {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  border-bottom: 1px dashed var(--border);
-  padding: 0.4rem 0;
+  gap: 0.45rem;
+  padding: 0.2rem 0;
+}
+
+.p-name {
+  font-weight: 500;
 }
 
 .admin-star {

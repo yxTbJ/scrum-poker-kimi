@@ -1,5 +1,7 @@
 import { useState } from 'react';
+import Avatar from './Avatar.jsx';
 import DeckSettings from './DeckSettings.jsx';
+import VoteChart from './VoteChart.jsx';
 
 const InviteLink = ({ code }) => {
   const [copied, setCopied] = useState(false);
@@ -18,6 +20,11 @@ const InviteLink = ({ code }) => {
       {copied ? 'Ссылка скопирована!' : 'Пригласить участников'}
     </button>
   );
+};
+
+const voteStatus = (p, revealed) => {
+  if (revealed) return p.vote ?? '—';
+  return p.voted ? '✓ проголосовал' : 'думает…';
 };
 
 export default function RoomScreen({ room, connected, error, onDismissError, onSend, onReconnect }) {
@@ -58,8 +65,16 @@ export default function RoomScreen({ room, connected, error, onDismissError, onS
                 <div key={p.id} className="vote-card">
                   <div className="vote-value">{p.vote ?? '—'}</div>
                   <div className="vote-name">
-                    {p.name}
-                    {p.role === 'admin' && <span title="Администратор"> ★</span>}
+                    <Avatar name={p.name} id={p.id} size={22} />
+                    <span>
+                      {p.name}
+                      {p.role === 'admin' && (
+                        <span className="admin-star" title="Администратор">
+                          {' '}
+                          ★
+                        </span>
+                      )}
+                    </span>
                   </div>
                 </div>
               ))}
@@ -69,6 +84,7 @@ export default function RoomScreen({ room, connected, error, onDismissError, onS
                 Среднее значение: <b>{room.average}</b>
               </div>
             )}
+            <VoteChart participants={room.participants} />
           </div>
         ) : (
           <div className="waiting">
@@ -82,7 +98,8 @@ export default function RoomScreen({ room, connected, error, onDismissError, onS
         <ul className="participants">
           {room.participants.map((p) => (
             <li key={p.id}>
-              <span>
+              <Avatar name={p.name} id={p.id} size={28} />
+              <span className="p-name">
                 {p.name}
                 {p.role === 'admin' && (
                   <span className="admin-star" title="Администратор">
@@ -92,11 +109,7 @@ export default function RoomScreen({ room, connected, error, onDismissError, onS
                 )}
               </span>
               <span className={p.voted ? 'status voted' : 'status thinking'}>
-                {room.revealed
-                  ? (p.vote ?? '—')
-                  : p.voted
-                    ? '✓ проголосовал'
-                    : 'думает…'}
+                {voteStatus(p, room.revealed)}
               </span>
             </li>
           ))}
