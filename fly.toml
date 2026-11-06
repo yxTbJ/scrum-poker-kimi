@@ -1,24 +1,38 @@
-# Конфигурация Fly.io: https://fly.io/docs/reference/configuration/
-# Деплой:  fly deploy   (требуется flyctl и fly auth login)
+# fly.toml app configuration file generated for scrum-poker-kimi on 2026-11-06T10:39:30Z
+#
+# See https://docs.fly.io/reference/configuration for information about how to use this file.
+#
 
 app = 'scrum-poker-kimi'
-primary_region = 'waw'   # Варшава; ближайшие к РФ альтернативы: fra, ams
+primary_region = 'ams'
 
 [build]
   dockerfile = 'Dockerfile'
 
 [http_service]
-  internal_port = 4000   # порт приложения (ENV PORT в Dockerfile/compose)
+  internal_port = 8080
   force_https = true
   # Критично для приложения с состоянием в памяти и WebSocket:
   # не останавливать машину при «простое» и держать одну машину включённой,
   # иначе соединения рвутся, а комнаты и токены теряются.
-  auto_stop_machines = 'off'
+  auto_stop_machines = true
   auto_start_machines = true
-  min_machines_running = 1
+  min_machines_running = 0
 
 # Строго одна машина: состояние комнат в памяти, масштабирование недопустимо
 # (контроль: fly scale count 1).
+  processes = ['app']
+
 [[vm]]
-  size = 'shared-cpu-1x'
+  memory = '1gb'
+  cpu_kind = 'shared'
+  cpus = 1
+  memory_mb = 256
+
+[[vm]]
+  size = 'shared-cpu-2x'
   memory = '512mb'
+  cpu_kind = 'shared'
+  cpus = 2
+  memory_mb = 512
+  processes = ['app']
