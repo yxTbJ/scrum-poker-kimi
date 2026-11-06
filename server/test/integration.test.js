@@ -341,6 +341,45 @@ test('переподключение в пределах окна отключе
   userAgain.close();
 });
 
+test('после вскрытия голос отключившегося участника сохраняется', async () => {
+  const created = await postJson('/api/rooms', { name: 'Аня', jobRole: 'developer' });
+  const joined = await postJson(`/api/rooms/${created.data.code}/join`, { name: 'Боря', jobRole: 'qa' });
+  const admin = connectClient(created.data.token);
+  const user = connectClient(joined.data.token);
+  await Promise.all([admin.opened, user.opened]);
+
+  admin.send({ type: 'start_session' });
+  await user.waitFor((m) => m.type === 'state' && m.room.sessionActive === true);
+  user.send({ type: 'vote', value: 10 });
+  admin.send({ type: 'vote', value: 20 });
+  await admin.waitFor((m) => m.type === 'state' && m.room.participants.every((p) => p.voted));
+  admin.send({ type: 'reveal' });
+  await user.waitFor((m) => m.type === 'state' && m.room.revealed);
+
+  // Боря закрывает вкладку уже после вскрытия
+  user.close();
+  await new Promise((r) => setTimeout(r, 500)); // дольше окна отключения
+
+  // его голос остался и засчитывается в статистике
+  const state = admin.lastState();
+  assert.equal(state.participants.length, 2);
+  assert.equal(participantByName(state, 'Боря').vote, 10);
+  assert.equal(state.stats.total.votes, 2);
+  assert.equal(state.stats.total.average, 15);
+  assert.equal(state.stats.byRole.developer.average, 20);
+  assert.equal(state.stats.byRole.qa.votes, 1);
+
+  // новый раунд: сохранённый «призрак» удаляется
+  admin.send({ type: 'reset' });
+  const reset = await admin.waitFor(
+    (m) => m.type === 'state' && !m.room.revealed && m.room.participants.length === 1,
+    { timeout: 3000 },
+  );
+  assert.ok(!participantByName(reset.room, 'Боря'));
+
+  admin.close();
+});
+
 test('невалидный токен WS отклоняется', async () => {
   const ws = new WebSocket(`${wsUrl}/ws?token=unknown`);
   const result = await new Promise((resolve) => {

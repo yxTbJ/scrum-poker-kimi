@@ -121,8 +121,10 @@ export function createApp({ store = createRoomStore(), disconnectGraceMs = 30_00
   }
 
   // После закрытия последней вкладки участника даём окно на переподключение
-  // (перезагрузка страницы), затем удаляем его; уход администратора
-  // завершает комнату для всех — без администратора она неработоспособна.
+  // (перезагрузка страницы), затем удаляем его. Исключение: карты вскрыты —
+  // тогда участник сохраняется вместе с голосом, он уже засчитан в результаты.
+  // Уход администратора вне вскрытия завершает комнату — без администратора
+  // она неработоспособна.
   function scheduleDisconnect(roomCode, participantId) {
     clearPendingDisconnect(roomCode, participantId);
     const key = disconnectKey(roomCode, participantId);
@@ -132,6 +134,7 @@ export function createApp({ store = createRoomStore(), disconnectGraceMs = 30_00
       const participant = room?.participants.get(participantId);
       if (!room || !participant) return;
       if (socketsOfParticipant(roomCode, participantId).length > 0) return;
+      if (room.revealed) return;
       if (participant.role === 'admin') {
         closeRoom(roomCode, 'Администратор покинул комнату — сессия завершена');
       } else {
@@ -141,6 +144,18 @@ export function createApp({ store = createRoomStore(), disconnectGraceMs = 30_00
     }, disconnectGraceMs);
     if (timer.unref) timer.unref();
     pendingDisconnects.set(key, timer);
+  }
+
+  // Удаляет участников без живых соединений (используется при переходе
+  // из вскрытого состояния в новый раунд/конец сессии: сохранённые после
+  // вскрытия «призраки» с отработавшим голосом больше не нужны).
+  function purgeDisconnectedParticipants(roomCode) {
+    const room = store.getRoom(roomCode);
+    if (!room) return;
+    const ghosts = [...room.participants.values()].filter(
+      (p) => p.role !== 'admin' && socketsOfParticipant(roomCode, p.id).length === 0,
+    );
+    for (const ghost of ghosts) store.removeParticipant(room, ghost);
   }
 
   async function handleHttp(req, res) {
@@ -235,6 +250,9 @@ export function createApp({ store = createRoomStore(), disconnectGraceMs = 30_00
     if (error) {
       sendTo(ws, { type: 'error', message: error });
     } else {
+      if (message.type === 'reset' || message.type === 'end_session') {
+        purgeDisconnectedParticipants(roomCode);
+      }
       broadcast(roomCode);
     }
   }
