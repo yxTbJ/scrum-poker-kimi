@@ -8,7 +8,8 @@ let baseUrl;
 let wsUrl;
 
 test.before(async () => {
-  app = createApp();
+  // Короткое окно отключения, чтобы тесты не ждали минуту
+  app = createApp({ disconnectGraceMs: 150 });
   await new Promise((resolve) => app.server.listen(0, '127.0.0.1', resolve));
   const { port } = app.server.address();
   baseUrl = `http://127.0.0.1:${port}`;
@@ -264,6 +265,59 @@ test('полный сценарий: сессия, роли, набор карт
 
   admin.close();
   user.close();
+});
+
+test('закрытие вкладки: участник покидает комнату, уход админа её закрывает', async () => {
+  const created = await postJson('/api/rooms', { name: 'Аня' });
+  const joined = await postJson(`/api/rooms/${created.data.code}/join`, { name: 'Боря' });
+  const admin = connectClient(created.data.token);
+  const user = connectClient(joined.data.token);
+  await Promise.all([admin.opened, user.opened]);
+  await admin.waitFor((m) => m.type === 'state' && m.room.participants.length === 2);
+
+  // Боря закрыл вкладку — после окна отключения его нет в комнате
+  user.close();
+  const withoutUser = await admin.waitFor(
+    (m) => m.type === 'state' && m.room.participants.length === 1 && !participantByName(m.room, 'Боря'),
+    { timeout: 3000 },
+  );
+  assert.equal(participantByName(withoutUser.room, 'Аня').role, 'admin');
+
+  // Вова подключается; админ закрывает вкладку — комната закрывается для всех
+  const joined2 = await postJson(`/api/rooms/${created.data.code}/join`, { name: 'Вова' });
+  const user2 = connectClient(joined2.data.token);
+  await user2.opened;
+  admin.close();
+  const closed = await user2.waitFor((m) => m.type === 'room_closed', { timeout: 3000 });
+  assert.match(closed.message, /Администратор/i);
+
+  // комната удалена: вход по коду невозможен
+  const rejoin = await postJson(`/api/rooms/${created.data.code}/join`, { name: 'Гена' });
+  assert.equal(rejoin.status, 404);
+  user2.close();
+});
+
+test('переподключение в пределах окна отключения сохраняет участника', async () => {
+  const created = await postJson('/api/rooms', { name: 'Аня' });
+  const joined = await postJson(`/api/rooms/${created.data.code}/join`, { name: 'Боря' });
+  const admin = connectClient(created.data.token);
+  const user = connectClient(joined.data.token);
+  await Promise.all([admin.opened, user.opened]);
+  await admin.waitFor((m) => m.type === 'state' && m.room.participants.length === 2);
+
+  // вкладка закрыта и тут же переоткрыта с тем же токеном
+  user.close();
+  const userAgain = connectClient(joined.data.token);
+  await userAgain.opened;
+
+  // ждём дольше окна отключения — участник должен остаться
+  await new Promise((r) => setTimeout(r, 500));
+  const state = admin.lastState();
+  assert.equal(state.participants.length, 2);
+  assert.ok(participantByName(state, 'Боря'));
+
+  admin.close();
+  userAgain.close();
 });
 
 test('невалидный токен WS отклоняется', async () => {

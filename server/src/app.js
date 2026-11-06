@@ -75,8 +75,9 @@ function serveStatic(req, res, pathname) {
   fs.createReadStream(finalPath).pipe(res);
 }
 
-export function createApp({ store = createRoomStore() } = {}) {
+export function createApp({ store = createRoomStore(), disconnectGraceMs = 60_000 } = {}) {
   const conns = new Map(); // roomCode -> Set<WebSocket>
+  const pendingDisconnects = new Map(); // "roomCode:participantId" -> Timeout
 
   function sendTo(ws, message) {
     if (ws.readyState === ws.OPEN) ws.send(JSON.stringify(message));
@@ -90,6 +91,56 @@ export function createApp({ store = createRoomStore() } = {}) {
       const participant = room.participants.get(ws.ctx.participantId);
       if (participant) sendTo(ws, { type: 'state', room: store.publicState(room, participant) });
     }
+  }
+
+  function socketsOfParticipant(roomCode, participantId) {
+    return [...(conns.get(roomCode) ?? [])].filter((s) => s.ctx.participantId === participantId);
+  }
+
+  const disconnectKey = (roomCode, participantId) => `${roomCode}:${participantId}`;
+
+  function clearPendingDisconnect(roomCode, participantId) {
+    const key = disconnectKey(roomCode, participantId);
+    const timer = pendingDisconnects.get(key);
+    if (timer) {
+      clearTimeout(timer);
+      pendingDisconnects.delete(key);
+    }
+  }
+
+  function closeRoom(roomCode, message) {
+    const sockets = conns.get(roomCode);
+    if (sockets) {
+      for (const ws of [...sockets]) {
+        sendTo(ws, { type: 'room_closed', message });
+        ws.close(1000, message);
+      }
+      conns.delete(roomCode);
+    }
+    store.deleteRoom(roomCode);
+  }
+
+  // После закрытия последней вкладки участника даём окно на переподключение
+  // (перезагрузка страницы), затем удаляем его; уход администратора
+  // завершает комнату для всех — без администратора она неработоспособна.
+  function scheduleDisconnect(roomCode, participantId) {
+    clearPendingDisconnect(roomCode, participantId);
+    const key = disconnectKey(roomCode, participantId);
+    const timer = setTimeout(() => {
+      pendingDisconnects.delete(key);
+      const room = store.getRoom(roomCode);
+      const participant = room?.participants.get(participantId);
+      if (!room || !participant) return;
+      if (socketsOfParticipant(roomCode, participantId).length > 0) return;
+      if (participant.role === 'admin') {
+        closeRoom(roomCode, 'Администратор покинул комнату — сессия завершена');
+      } else {
+        store.removeParticipant(room, participant);
+        broadcast(roomCode);
+      }
+    }, disconnectGraceMs);
+    if (timer.unref) timer.unref();
+    pendingDisconnects.set(key, timer);
   }
 
   async function handleHttp(req, res) {
@@ -216,7 +267,8 @@ export function createApp({ store = createRoomStore() } = {}) {
   });
 
   wss.on('connection', (ws) => {
-    const { roomCode } = ws.ctx;
+    const { roomCode, participantId } = ws.ctx;
+    clearPendingDisconnect(roomCode, participantId);
     if (!conns.has(roomCode)) conns.set(roomCode, new Set());
     conns.get(roomCode).add(ws);
     broadcast(roomCode);
@@ -227,6 +279,9 @@ export function createApp({ store = createRoomStore() } = {}) {
       if (sockets) {
         sockets.delete(ws);
         if (sockets.size === 0) conns.delete(roomCode);
+      }
+      if (socketsOfParticipant(roomCode, participantId).length === 0) {
+        scheduleDisconnect(roomCode, participantId);
       }
     });
   });

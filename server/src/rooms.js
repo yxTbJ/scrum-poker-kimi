@@ -133,6 +133,20 @@ export function createRoomStore() {
 
     publicState,
 
+    removeParticipant(room, participant) {
+      room.participants.delete(participant.id);
+      for (const [token, ctx] of tokens) {
+        if (ctx.participantId === participant.id) tokens.delete(token);
+      }
+    },
+
+    deleteRoom(roomCode) {
+      rooms.delete(roomCode);
+      for (const [token, ctx] of tokens) {
+        if (ctx.roomCode === roomCode) tokens.delete(token);
+      }
+    },
+
     startSession(room, participant) {
       if (participant.role !== 'admin') return 'Только администратор может управлять сессией';
       room.sessionActive = true;

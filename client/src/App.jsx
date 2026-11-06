@@ -39,8 +39,24 @@ export default function App() {
     };
     ws.onmessage = (event) => {
       const msg = JSON.parse(event.data);
-      if (msg.type === 'state') setRoom(msg.room);
-      else if (msg.type === 'error') setError(msg.message);
+      if (msg.type === 'state') {
+        setRoom(msg.room);
+      } else if (msg.type === 'room_closed') {
+        // комната завершена (администратор ушёл) — выкидываем на вход
+        const current = sessionRef.current;
+        if (current) {
+          const session = loadStoredSession();
+          if (session?.code === current.code) localStorage.removeItem(STORAGE_SESSION);
+          sessionStorage.removeItem(`scrum-poker:${current.code}`);
+          sessionRef.current = null;
+        }
+        wsRef.current?.close();
+        setRoom(null);
+        setView('entry');
+        setError(msg.message);
+      } else if (msg.type === 'error') {
+        setError(msg.message);
+      }
     };
     ws.onclose = () => setConnected(false);
     wsRef.current = ws;
