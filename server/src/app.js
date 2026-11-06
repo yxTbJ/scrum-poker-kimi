@@ -75,7 +75,7 @@ function serveStatic(req, res, pathname) {
   fs.createReadStream(finalPath).pipe(res);
 }
 
-export function createApp({ store = createRoomStore(), disconnectGraceMs = 60_000 } = {}) {
+export function createApp({ store = createRoomStore(), disconnectGraceMs = 30_000 } = {}) {
   const conns = new Map(); // roomCode -> Set<WebSocket>
   const pendingDisconnects = new Map(); // "roomCode:participantId" -> Timeout
 
