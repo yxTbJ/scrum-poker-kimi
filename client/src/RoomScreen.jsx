@@ -106,31 +106,35 @@ export default function RoomScreen({ room, connected, error, onDismissError, onS
         )}
 
         <ul className="participants">
-          {room.participants.map((p) => (
-            <li key={p.id}>
-              <Avatar name={p.name} id={p.id} size={28} />
-              <span className="p-name">
-                {p.name}
-                {p.role === 'admin' && (
-                  <span className="admin-star" title="Администратор">
-                    {' '}
-                    ★
-                  </span>
-                )}
-              </span>
-              <span
-                className={
-                  room.revealed
-                    ? 'status revealed-vote'
-                    : p.voted
-                      ? 'status voted'
-                      : 'status thinking'
-                }
-              >
-                {voteStatus(p, room.revealed)}
-              </span>
-            </li>
-          ))}
+          {room.participants.map((p) => {
+            const isMe = p.id === room.you.id;
+            return (
+              <li key={p.id} className={isMe ? 'me' : undefined}>
+                <Avatar name={p.name} id={p.id} size={28} />
+                <span className="p-name">
+                  {p.name}
+                  {isMe && <span className="me-badge">вы</span>}
+                  {p.role === 'admin' && (
+                    <span className="admin-star" title="Администратор">
+                      {' '}
+                      ★
+                    </span>
+                  )}
+                </span>
+                <span
+                  className={
+                    room.revealed
+                      ? 'status revealed-vote'
+                      : p.voted
+                        ? 'status voted'
+                        : 'status thinking'
+                  }
+                >
+                  {voteStatus(p, room.revealed)}
+                </span>
+              </li>
+            );
+          })}
         </ul>
       </main>
 

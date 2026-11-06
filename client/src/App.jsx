@@ -7,9 +7,21 @@ function wsUrlFor(token) {
   return `${proto}://${location.host}/ws?token=${encodeURIComponent(token)}`;
 }
 
+const STORAGE_NAME = 'scrum-poker:name';
+const STORAGE_SESSION = 'scrum-poker:session';
+
+function loadStoredSession() {
+  try {
+    const session = JSON.parse(localStorage.getItem(STORAGE_SESSION) || 'null');
+    return session?.code && session?.token ? session : null;
+  } catch {
+    return null;
+  }
+}
+
 export default function App() {
   const [view, setView] = useState('entry');
-  const [name, setName] = useState('');
+  const [name, setName] = useState(() => localStorage.getItem(STORAGE_NAME) ?? '');
   const [code, setCode] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -36,8 +48,17 @@ export default function App() {
 
   const enterRoom = useCallback(
     (roomCode, token, initialState) => {
-      sessionRef.current = { code: roomCode, token };
+      const me = initialState.participants?.find((p) => p.id === initialState.you?.id);
+      const displayName = me?.name ?? '';
+      if (displayName) {
+        localStorage.setItem(STORAGE_NAME, displayName);
+        localStorage.setItem(
+          STORAGE_SESSION,
+          JSON.stringify({ code: roomCode, token, name: displayName }),
+        );
+      }
       sessionStorage.setItem(`scrum-poker:${roomCode}`, token);
+      sessionRef.current = { code: roomCode, token };
       history.replaceState(null, '', `/?room=${roomCode}`);
       setRoom(initialState);
       setView('room');
@@ -47,14 +68,31 @@ export default function App() {
     [connectWs],
   );
 
-  // Восстановление сессии по ссылке-приглашению ?room=КОД
+  // Восстановление сессии при открытии:
+  // 1) по ссылке ?room=КОД (токен в sessionStorage на время вкладки);
+  // 2) иначе — последняя сессия из localStorage (имя и комната восстанавливаются
+  //    даже после перезапуска браузера).
   useEffect(() => {
     const param = new URLSearchParams(location.search).get('room');
-    if (!param) return undefined;
-    const roomCode = param.trim().toUpperCase();
+    let roomCode = param?.trim().toUpperCase() ?? '';
+    let token = roomCode ? sessionStorage.getItem(`scrum-poker:${roomCode}`) : null;
+    let storedName = null;
+
+    if (!roomCode) {
+      const session = loadStoredSession();
+      if (session) {
+        roomCode = session.code;
+        token = session.token;
+        storedName = session.name;
+      }
+    } else if (!token) {
+      const session = loadStoredSession();
+      if (session?.code === roomCode) token = session.token;
+    }
+
+    if (!roomCode || !token) return undefined;
     setCode(roomCode);
-    const token = sessionStorage.getItem(`scrum-poker:${roomCode}`);
-    if (!token) return undefined;
+    if (storedName) setName(storedName);
 
     let entered = false;
     const probe = new WebSocket(wsUrlFor(token));
@@ -67,7 +105,11 @@ export default function App() {
       }
     };
     probe.onclose = () => {
-      if (!entered) sessionStorage.removeItem(`scrum-poker:${roomCode}`);
+      if (!entered) {
+        sessionStorage.removeItem(`scrum-poker:${roomCode}`);
+        const session = loadStoredSession();
+        if (session?.code === roomCode) localStorage.removeItem(STORAGE_SESSION);
+      }
     };
     return () => probe.close();
   }, [enterRoom]);

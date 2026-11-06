@@ -344,6 +344,23 @@ input:focus {
   min-width: 0;
 }
 
+.participants li.me {
+  background: #eff6ff;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+
+.me-badge {
+  margin-left: 0.35rem;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--accent);
+  background: #dbeafe;
+  border-radius: 999px;
+  padding: 0.05rem 0.45rem;
+  vertical-align: middle;
+}
+
 .p-name {
   font-weight: 500;
   overflow: hidden;
