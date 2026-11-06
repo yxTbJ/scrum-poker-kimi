@@ -38,6 +38,22 @@ docker compose up --build
 # http://localhost:4000
 ```
 
+## Fly.io (PaaS, деплой из Dockerfile)
+
+В репозитории готовый `fly.toml` (регион Варшава, 512 МБ, авто-stop выключен — состояние в памяти). Приложение будет доступно по адресу `https://<имя-приложения>.fly.dev` с автоматическим HTTPS.
+
+```bash
+winget install --id Fly-io.flyctl        # или: iwr https://fly.io/install.ps1 -useb | iex
+fly auth login                           # вход через браузер
+git clone https://github.com/yxTbJ/scrum-poker-kimi.git
+cd scrum-poker-kimi
+fly launch    # подхватит существующий fly.toml; имя/регион можно оставить как есть
+fly scale count 1                        # строго одна машина (состояние в памяти)
+fly deploy
+```
+
+Проверка: `curl https://scrum-poker-kimi.fly.dev/api/health` → `{"ok":true}`. Обновления — `git pull && fly deploy`.
+
 ## Деплой на VPS (интернет, автоматический HTTPS)
 
 Понадобятся: VPS с Ubuntu 24.04 (минимальный тарифа хватит) и домен с A-записью на IP сервера.
