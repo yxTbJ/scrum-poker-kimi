@@ -1,0 +1,8 @@
+# Замените poker.example.com на ваш домен.
+# A-запись домена должна указывать на IP этого сервера —
+# тогда Caddy сам получит и будет продлевать сертификат Let's Encrypt.
+# WebSocket (wss://) проходит через reverse_proxy автоматически.
+
+poker.example.com {
+	reverse_proxy app:4000
+}

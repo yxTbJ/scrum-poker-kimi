@@ -1,0 +1,29 @@
+# Продакшн-запуск: приложение за Caddy (автоматический HTTPS через Let's Encrypt).
+# Требуется домен, направленный A-записью на IP сервера (см. Caddyfile).
+#
+# Запуск на сервере:
+#   docker compose -f docker-compose.prod.yml up -d --build
+
+services:
+  app:
+    build: .
+    restart: unless-stopped
+    expose:
+      - "4000"   # наружу не публикуем — наружу смотрит только Caddy
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data       # сертификаты Let's Encrypt
+      - caddy_config:/config
+    depends_on:
+      - app
+
+volumes:
+  caddy_data:
+  caddy_config:
