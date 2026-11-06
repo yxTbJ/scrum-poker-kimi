@@ -75,23 +75,27 @@ export default function App() {
   useEffect(() => {
     const param = new URLSearchParams(location.search).get('room');
     let roomCode = param?.trim().toUpperCase() ?? '';
-    let token = roomCode ? sessionStorage.getItem(`scrum-poker:${roomCode}`) : null;
+    let token = null;
     let storedName = null;
 
-    if (!roomCode) {
+    if (roomCode) {
+      // код из ссылки подставляем всегда — даже если токена ещё нет
+      setCode(roomCode);
+      token = sessionStorage.getItem(`scrum-poker:${roomCode}`);
+      if (!token) {
+        const session = loadStoredSession();
+        if (session?.code === roomCode) token = session.token;
+      }
+    } else {
       const session = loadStoredSession();
       if (session) {
         roomCode = session.code;
         token = session.token;
         storedName = session.name;
       }
-    } else if (!token) {
-      const session = loadStoredSession();
-      if (session?.code === roomCode) token = session.token;
     }
 
     if (!roomCode || !token) return undefined;
-    setCode(roomCode);
     if (storedName) setName(storedName);
 
     let entered = false;
