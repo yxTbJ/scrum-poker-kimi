@@ -366,6 +366,12 @@ input:focus {
   color: var(--voted);
 }
 
+.status.revealed-vote {
+  color: var(--text);
+  font-weight: 700;
+  font-size: 0.95rem;
+}
+
 /* --- Колода --- */
 
 .deck {
@@ -396,15 +402,6 @@ input:focus {
   color: #fff;
   transform: translateY(-6px);
   box-shadow: 0 8px 16px rgba(37, 99, 235, 0.35);
-}
-
-.deck-clear {
-  text-align: center;
-}
-
-.deck-clear button {
-  font-size: 0.9rem;
-  color: var(--muted);
 }
 
 /* --- Панель администратора --- */

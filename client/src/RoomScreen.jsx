@@ -118,7 +118,15 @@ export default function RoomScreen({ room, connected, error, onDismissError, onS
                   </span>
                 )}
               </span>
-              <span className={p.voted ? 'status voted' : 'status thinking'}>
+              <span
+                className={
+                  room.revealed
+                    ? 'status revealed-vote'
+                    : p.voted
+                      ? 'status voted'
+                      : 'status thinking'
+                }
+              >
                 {voteStatus(p, room.revealed)}
               </span>
             </li>
@@ -127,24 +135,20 @@ export default function RoomScreen({ room, connected, error, onDismissError, onS
       </main>
 
       {canVote && (
-        <>
-          <div className="deck">
-            {room.deck.map((value) => (
-              <button
-                key={value}
-                className={me?.vote === value ? 'card selected' : 'card'}
-                onClick={() => onSend({ type: 'vote', value })}
-              >
-                {value}
-              </button>
-            ))}
-          </div>
-          {me?.vote !== null && me?.vote !== undefined && (
-            <div className="deck-clear">
-              <button onClick={() => onSend({ type: 'clear_vote' })}>Сбросить мой выбор</button>
-            </div>
-          )}
-        </>
+        <div className="deck">
+          {room.deck.map((value) => (
+            <button
+              key={value}
+              className={me?.vote === value ? 'card selected' : 'card'}
+              title={me?.vote === value ? 'Нажмите ещё раз, чтобы отменить выбор' : undefined}
+              onClick={() =>
+                onSend(me?.vote === value ? { type: 'clear_vote' } : { type: 'vote', value })
+              }
+            >
+              {value}
+            </button>
+          ))}
+        </div>
       )}
 
       {admin && (
