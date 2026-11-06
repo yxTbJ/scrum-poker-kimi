@@ -31,12 +31,41 @@ npm run build
 npm start        # http://localhost:4000
 ```
 
-## Docker
+## Docker (локально)
 
 ```bash
 docker compose up --build
 # http://localhost:4000
 ```
+
+## Деплой на VPS (интернет, автоматический HTTPS)
+
+Понадобятся: VPS с Ubuntu 24.04 (минимальный тарифа хватит) и домен с A-записью на IP сервера.
+
+```bash
+# 1. На сервере: Docker
+curl -fsSL https://get.docker.com | sudo sh
+sudo usermod -aG docker $USER   # перелогиниться
+
+# 2. Залить код проекта в /opt/scrum-poker (git clone или scp, см. ниже)
+# 3. В Caddyfile заменить poker.example.com на свой домен
+
+# 4. Запуск
+cd /opt/scrum-poker
+docker compose -f docker-compose.prod.yml up -d --build
+```
+
+Caddy сам получит сертификат Let's Encrypt, как только домен начнёт резолвиться в IP сервера (нужны открытые порты 80/443). Проверка: `curl https://ВАШ-ДОМЕН/api/health` → `{"ok":true}`.
+
+Перенос кода на сервер без GitHub (с машины с проектом):
+
+```bash
+tar czf /tmp/scrum-poker.tar.gz --exclude=node_modules --exclude=.git .
+scp /tmp/scrum-poker.tar.gz root@IP_СЕРВЕРА:/tmp/
+ssh root@IP_СЕРВЕРА "mkdir -p /opt/scrum-poker && tar xzf /tmp/scrum-poker.tar.gz -C /opt/scrum-poker"
+```
+
+Обновление после правок кода: перезалить код и повторить шаг 4.
 
 ## Тесты
 
