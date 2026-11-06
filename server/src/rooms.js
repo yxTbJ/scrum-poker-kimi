@@ -61,6 +61,10 @@ export function createRoomStore() {
     return token;
   }
 
+  function clearVotes(room) {
+    for (const p of room.participants.values()) p.vote = null;
+  }
+
   function publicState(room, viewer) {
     const participants = [...room.participants.values()].map((p) => ({
       id: p.id,
@@ -80,6 +84,7 @@ export function createRoomStore() {
       code: room.code,
       deck: [...room.deck],
       revealed: room.revealed,
+      sessionActive: room.sessionActive,
       average,
       participants,
       you: { id: viewer.id, role: viewer.role },
@@ -107,6 +112,7 @@ export function createRoomStore() {
         code,
         deck: defaultDeck(),
         revealed: false,
+        sessionActive: false,
         participants: new Map([[admin.id, admin]]),
       };
       rooms.set(code, room);
@@ -127,7 +133,22 @@ export function createRoomStore() {
 
     publicState,
 
+    startSession(room, participant) {
+      if (participant.role !== 'admin') return 'Только администратор может управлять сессией';
+      room.sessionActive = true;
+      return null;
+    },
+
+    endSession(room, participant) {
+      if (participant.role !== 'admin') return 'Только администратор может управлять сессией';
+      room.sessionActive = false;
+      room.revealed = false;
+      clearVotes(room);
+      return null;
+    },
+
     vote(room, participant, value) {
+      if (!room.sessionActive) return 'Сессия не начата — дождитесь администратора';
       if (room.revealed) return 'Карты уже вскрыты, дождитесь нового раунда';
       if (!Number.isInteger(value)) return 'Значение карты должно быть целым числом';
       if (!room.deck.includes(value)) return 'Такой карты нет в наборе комнаты';
@@ -135,26 +156,36 @@ export function createRoomStore() {
       return null;
     },
 
+    clearVote(room, participant) {
+      if (!room.sessionActive) return 'Сессия не начата — дождитесь администратора';
+      if (room.revealed) return 'Карты уже вскрыты, дождитесь нового раунда';
+      participant.vote = null;
+      return null;
+    },
+
     reveal(room, participant) {
       if (participant.role !== 'admin') return 'Только администратор может вскрывать карты';
+      if (!room.sessionActive) return 'Сессия не начата';
       room.revealed = true;
       return null;
     },
 
     reset(room, participant) {
       if (participant.role !== 'admin') return 'Только администратор может начинать новый раунд';
+      if (!room.sessionActive) return 'Сессия не начата';
       room.revealed = false;
-      for (const p of room.participants.values()) p.vote = null;
+      clearVotes(room);
       return null;
     },
 
     updateDeck(room, participant, deck) {
       if (participant.role !== 'admin') return 'Только администратор может менять набор карт';
+      if (room.sessionActive) return 'Нельзя менять набор карт во время активной сессии';
       const error = validateDeck(deck);
       if (error) return error;
       room.deck = [...deck].sort((a, b) => a - b);
       room.revealed = false;
-      for (const p of room.participants.values()) p.vote = null;
+      clearVotes(room);
       return null;
     },
   };

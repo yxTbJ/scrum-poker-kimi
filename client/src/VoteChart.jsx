@@ -12,15 +12,17 @@ export default function VoteChart({ participants }) {
   return (
     <div className="chart">
       <h3>Распределение голосов</h3>
-      {entries.map(([value, count]) => (
-        <div key={value} className="chart-row">
-          <span className="chart-value">{value}</span>
-          <div className="chart-track">
-            <div className="chart-bar" style={{ width: `${(count / max) * 100}%` }} />
+      <div className="chart-cols">
+        {entries.map(([value, count]) => (
+          <div key={value} className="chart-col">
+            <div className="chart-col-count">{count}</div>
+            <div className="chart-col-track">
+              <div className="chart-col-bar" style={{ height: `${(count / max) * 100}%` }} />
+            </div>
+            <div className="chart-col-value">{value}</div>
           </div>
-          <span className="chart-count">{count} чел.</span>
-        </div>
-      ))}
+        ))}
+      </div>
     </div>
   );
 }

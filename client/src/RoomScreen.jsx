@@ -2,6 +2,7 @@ import { useState } from 'react';
 import Avatar from './Avatar.jsx';
 import DeckSettings from './DeckSettings.jsx';
 import VoteChart from './VoteChart.jsx';
+import PieChart from './PieChart.jsx';
 
 const InviteLink = ({ code }) => {
   const [copied, setCopied] = useState(false);
@@ -31,6 +32,7 @@ export default function RoomScreen({ room, connected, error, onDismissError, onS
   const admin = room.you.role === 'admin';
   const me = room.participants.find((p) => p.id === room.you.id);
   const votedCount = room.participants.filter((p) => p.voted).length;
+  const canVote = room.sessionActive && !room.revealed;
 
   return (
     <div className="room">
@@ -84,14 +86,22 @@ export default function RoomScreen({ room, connected, error, onDismissError, onS
                 Среднее значение: <b>{room.average}</b>
               </div>
             )}
-            <VoteChart participants={room.participants} />
           </div>
         ) : (
           <div className="waiting">
-            <p>
-              Голосование идёт — проголосовали {votedCount} из {room.participants.length}
-            </p>
-            <p className="hint">Выберите карту ниже. Карты будут вскрыты администратором.</p>
+            {!room.sessionActive ? (
+              <>
+                <p>Сессия не начата — ожидайте администратора</p>
+                <p className="hint">Карты появятся, когда администратор начнёт сессию.</p>
+              </>
+            ) : (
+              <>
+                <p>
+                  Голосование идёт — проголосовали {votedCount} из {room.participants.length}
+                </p>
+                <p className="hint">Выберите карту ниже. Карты будут вскрыты администратором.</p>
+              </>
+            )}
           </div>
         )}
 
@@ -116,34 +126,65 @@ export default function RoomScreen({ room, connected, error, onDismissError, onS
         </ul>
       </main>
 
-      {!room.revealed && (
-        <div className="deck">
-          {room.deck.map((value) => (
-            <button
-              key={value}
-              className={me?.vote === value ? 'card selected' : 'card'}
-              onClick={() => onSend({ type: 'vote', value })}
-            >
-              {value}
-            </button>
-          ))}
-        </div>
+      {canVote && (
+        <>
+          <div className="deck">
+            {room.deck.map((value) => (
+              <button
+                key={value}
+                className={me?.vote === value ? 'card selected' : 'card'}
+                onClick={() => onSend({ type: 'vote', value })}
+              >
+                {value}
+              </button>
+            ))}
+          </div>
+          {me?.vote !== null && me?.vote !== undefined && (
+            <div className="deck-clear">
+              <button onClick={() => onSend({ type: 'clear_vote' })}>Сбросить мой выбор</button>
+            </div>
+          )}
+        </>
       )}
 
       {admin && (
         <div className="admin-panel">
           <div className="admin-actions">
-            {!room.revealed ? (
-              <button className="primary" onClick={() => onSend({ type: 'reveal' })}>
-                Вскрыть карты
+            {!room.sessionActive ? (
+              <button className="primary" onClick={() => onSend({ type: 'start_session' })}>
+                Начать сессию
               </button>
             ) : (
-              <button className="primary" onClick={() => onSend({ type: 'reset' })}>
-                Новый раунд
-              </button>
+              <>
+                {!room.revealed ? (
+                  <button className="primary" onClick={() => onSend({ type: 'reveal' })}>
+                    Вскрыть карты
+                  </button>
+                ) : (
+                  <button className="primary" onClick={() => onSend({ type: 'reset' })}>
+                    Новый раунд
+                  </button>
+                )}
+                <button className="danger" onClick={() => onSend({ type: 'end_session' })}>
+                  Закончить сессию
+                </button>
+              </>
             )}
           </div>
-          <DeckSettings deck={room.deck} onChange={(deck) => onSend({ type: 'update_deck', deck })} />
+          {room.sessionActive ? (
+            <p className="hint">
+              Набор карт заблокирован на время сессии. Завершите сессию, чтобы изменить его.
+            </p>
+          ) : (
+            <DeckSettings deck={room.deck} onChange={(deck) => onSend({ type: 'update_deck', deck })} />
+          )}
+        </div>
+      )}
+
+      {room.revealed && (
+        <div className="charts">
+          <VoteChart participants={room.participants} />
+          <PieChart participants={room.participants} />
         </div>
       )}
     </div>

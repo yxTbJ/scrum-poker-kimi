@@ -76,6 +76,9 @@ function connectClient(token) {
         waiters.push({ predicate, resolve, timer });
       });
     },
+    waitForError(pattern, after) {
+      return this.waitFor((m) => m.type === 'error' && pattern.test(m.message), { after });
+    },
     lastState() {
       return messages.filter((m) => m.type === 'state').at(-1)?.room ?? null;
     },
@@ -88,14 +91,13 @@ function connectClient(token) {
 const participantByName = (state, name) =>
   state.participants.find((p) => p.name === name);
 
-test('полный сценарий: администратор и участник', async () => {
+test('полный сценарий: сессия, роли, набор карт, голосование', async () => {
   // Администратор создаёт комнату
   const created = await postJson('/api/rooms', { name: 'Аня' });
   assert.equal(created.status, 201);
   assert.equal(created.data.state.you.role, 'admin');
   assert.equal(created.data.state.deck.length, 30);
-  assert.equal(created.data.state.deck[0], 1);
-  assert.equal(created.data.state.deck[29], 30);
+  assert.equal(created.data.state.sessionActive, false);
   const roomCode = created.data.code;
   const adminToken = created.data.token;
 
@@ -108,7 +110,7 @@ test('полный сценарий: администратор и участн�
   // Участник входит по коду
   const joined = await postJson(`/api/rooms/${roomCode}/join`, { name: 'Боря' });
   assert.equal(joined.status, 201);
-  assert.equal(joined.data.state.you.role, 'participant');
+  const userId = joined.data.state.you.id;
   const userToken = joined.data.token;
 
   // Оба подключаются по WebSocket
@@ -130,38 +132,71 @@ test('полный сценарий: администратор и участн�
   // Участник не может менять набор
   mark = user.messages.length;
   user.send({ type: 'update_deck', deck: [1, 2] });
-  await user.waitFor((m) => m.type === 'error' && /администратор/i.test(m.message), { after: mark });
+  await user.waitForError(/администратор/i, mark);
+
+  // До начала сессии голосовать нельзя
+  mark = user.messages.length;
+  user.send({ type: 'vote', value: 10 });
+  await user.waitForError(/сессия не начата/i, mark);
+
+  // Участник не может начать сессию
+  mark = user.messages.length;
+  user.send({ type: 'start_session' });
+  await user.waitForError(/администратор/i, mark);
+
+  // Администратор начинает сессию
+  admin.send({ type: 'start_session' });
+  const started = await user.waitFor((m) => m.type === 'state' && m.room.sessionActive === true);
+  assert.equal(started.room.sessionActive, true);
+
+  // Во время сессии набор изменять нельзя
+  mark = admin.messages.length;
+  admin.send({ type: 'update_deck', deck: [1, 2] });
+  await admin.waitForError(/сессии/i, mark);
 
   // Голос вне набора отклоняется
   mark = user.messages.length;
   user.send({ type: 'vote', value: 7 });
-  await user.waitFor((m) => m.type === 'error' && /нет в наборе/i.test(m.message), { after: mark });
-  assert.equal(user.lastState().participants.find((p) => p.id === joined.data.state.you.id).vote, null);
+  await user.waitForError(/нет в наборе/i, mark);
+  assert.equal(user.lastState().participants.find((p) => p.id === userId).vote, null);
 
   // Нецелый голос отклоняется
   mark = user.messages.length;
   user.send({ type: 'vote', value: 2.5 });
-  await user.waitFor((m) => m.type === 'error' && /целым числом/i.test(m.message), { after: mark });
+  await user.waitForError(/целым числом/i, mark);
 
   // Оба голосуют допустимыми картами
   user.send({ type: 'vote', value: 10 });
-  await admin.waitFor(
-    (m) => m.type === 'state' && participantByName(m.room, 'Боря').voted,
-  );
+  await admin.waitFor((m) => m.type === 'state' && participantByName(m.room, 'Боря').voted);
   admin.send({ type: 'vote', value: 45 });
-  await user.waitFor(
+  await user.waitFor((m) => m.type === 'state' && m.room.participants.every((p) => p.voted));
+
+  // Участник очищает свой голос — статус возвращается к «думает»
+  mark = user.messages.length;
+  user.send({ type: 'clear_vote' });
+  const cleared = await user.waitFor(
+    (m) => m.type === 'state' && !m.room.participants.find((p) => p.id === userId).voted,
+    { after: mark },
+  );
+  assert.equal(participantByName(cleared.room, 'Боря').vote, null);
+
+  // Голосует заново
+  mark = user.messages.length;
+  user.send({ type: 'vote', value: 10 });
+  const reVoted = await user.waitFor(
     (m) => m.type === 'state' && m.room.participants.every((p) => p.voted),
+    { after: mark },
   );
 
-  // Свой голос виден до вскрытия, чужой скрыт
-  state = user.lastState();
+  // Свой голос виден до вскрытия, чужой скрыт (проверяем по самому свежему состоянию)
+  state = reVoted.room;
   assert.equal(participantByName(state, 'Боря').vote, 10);
   assert.equal(participantByName(state, 'Аня').vote, null);
 
   // Участник не может вскрыть карты
   mark = user.messages.length;
   user.send({ type: 'reveal' });
-  await user.waitFor((m) => m.type === 'error' && /администратор/i.test(m.message), { after: mark });
+  await user.waitForError(/администратор/i, mark);
   assert.equal(user.lastState().revealed, false);
 
   // Администратор вскрывает карты, среднее рассчитано верно
@@ -171,28 +206,61 @@ test('полный сценарий: администратор и участн�
   assert.equal(participantByName(revealed.room, 'Боря').vote, 10);
   assert.equal(participantByName(revealed.room, 'Аня').vote, 45);
 
+  // После вскрытия голосовать нельзя
+  mark = user.messages.length;
+  user.send({ type: 'vote', value: 10 });
+  await user.waitForError(/вскрыты/i, mark);
+
   // Участник не может начать новый раунд
   mark = user.messages.length;
   user.send({ type: 'reset' });
-  await user.waitFor((m) => m.type === 'error' && /администратор/i.test(m.message), { after: mark });
+  await user.waitForError(/администратор/i, mark);
 
-  // Администратор начинает новый раунд — голоса сброшены
+  // Администратор начинает новый раунд — голоса сброшены, сессия продолжается
   mark = user.messages.length;
   admin.send({ type: 'reset' });
   const resetState = await user.waitFor(
     (m) => m.type === 'state' && !m.room.revealed && m.room.participants.every((p) => !p.voted),
     { after: mark },
   );
+  assert.equal(resetState.room.sessionActive, true);
   assert.equal(resetState.room.average, null);
   assert.deepEqual(resetState.room.deck, [1, 2, 3, 10, 45]);
 
-  // Нельзя проголосовать после вскрытия — уже сброшено, проверим повторно:
-  // вскрываем пустую комнату и пытаемся голосовать
-  admin.send({ type: 'reveal' });
-  await user.waitFor((m) => m.type === 'state' && m.room.revealed);
+  // После сброса можно голосовать снова
+  mark = admin.messages.length;
+  user.send({ type: 'vote', value: 3 });
+  await admin.waitFor((m) => m.type === 'state' && participantByName(m.room, 'Боря').voted, { after: mark });
+
+  // Участник не может закончить сессию
+  mark = user.messages.length;
+  user.send({ type: 'end_session' });
+  await user.waitForError(/администратор/i, mark);
+
+  // Администратор заканчивает сессию: голоса очищены, карты недоступны
+  mark = user.messages.length;
+  admin.send({ type: 'end_session' });
+  const ended = await user.waitFor(
+    (m) => m.type === 'state' && m.room.sessionActive === false && m.room.participants.every((p) => !p.voted),
+    { after: mark },
+  );
+  assert.equal(ended.room.revealed, false);
+
+  // После конца сессии голосовать нельзя
   mark = user.messages.length;
   user.send({ type: 'vote', value: 10 });
-  await user.waitFor((m) => m.type === 'error' && /вскрыты/i.test(m.message), { after: mark });
+  await user.waitForError(/сессия не начата/i, mark);
+
+  // Вскрытие без активной сессии нельзя
+  mark = admin.messages.length;
+  admin.send({ type: 'reveal' });
+  await admin.waitForError(/сессия/i, mark);
+
+  // После конца сессии набор снова можно менять
+  mark = user.messages.length;
+  admin.send({ type: 'update_deck', deck: [1, 2, 3] });
+  const deck2 = await user.waitFor((m) => m.type === 'state' && m.room.deck.length === 3, { after: mark });
+  assert.deepEqual(deck2.room.deck, [1, 2, 3]);
 
   admin.close();
   user.close();

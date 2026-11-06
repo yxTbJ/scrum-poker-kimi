@@ -156,8 +156,17 @@ export function createApp({ store = createRoomStore() } = {}) {
 
     let error = null;
     switch (message.type) {
+      case 'start_session':
+        error = store.startSession(room, participant);
+        break;
+      case 'end_session':
+        error = store.endSession(room, participant);
+        break;
       case 'vote':
         error = store.vote(room, participant, message.value);
+        break;
+      case 'clear_vote':
+        error = store.clearVote(room, participant);
         break;
       case 'reveal':
         error = store.reveal(room, participant);
