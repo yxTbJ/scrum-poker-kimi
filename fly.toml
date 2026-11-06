@@ -1,4 +1,4 @@
-# fly.toml app configuration file generated for scrum-poker-kimi on 2026-11-06T11:18:41Z
+# fly.toml app configuration file generated for scrum-poker-kimi on 2026-11-06T11:19:36Z
 #
 # See https://docs.fly.io/reference/configuration for information about how to use this file.
 #
@@ -15,7 +15,7 @@ primary_region = 'ams'
   # Критично для приложения с состоянием в памяти и WebSocket:
   # не останавливать машину при «простое» и держать одну машину включённой,
   # иначе соединения рвутся, а комнаты и токены теряются.
-  auto_stop_machines = true
+  auto_stop_machines = 'off'
   auto_start_machines = true
   min_machines_running = 1
 
@@ -30,9 +30,9 @@ primary_region = 'ams'
   memory_mb = 256
 
 [[vm]]
-  size = 'shared-cpu-2x'
   memory = '512mb'
   cpu_kind = 'shared'
   cpus = 2
   memory_mb = 512
+  size = 'shared-cpu-2x'
   processes = ['app']
