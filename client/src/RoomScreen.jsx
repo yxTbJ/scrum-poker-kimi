@@ -72,7 +72,16 @@ function ChartsPanel({ room }) {
   );
 }
 
-export default function RoomScreen({ room, connected, error, onDismissError, onSend, onReconnect }) {
+const OfflineIcon = () => (
+  <span className="offline-icon" title="Нет соединения">
+    <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+      <circle cx="8" cy="8" r="5.5" />
+      <line x1="4.2" y1="11.8" x2="11.8" y2="4.2" />
+    </svg>
+  </span>
+);
+
+export default function RoomScreen({ room, connected, error, onDismissError, onSend, onReconnect, onLeave }) {
   const admin = room.you.role === 'admin';
   const me = room.participants.find((p) => p.id === room.you.id);
   const votedCount = room.participants.filter((p) => p.voted).length;
@@ -87,6 +96,13 @@ export default function RoomScreen({ room, connected, error, onDismissError, onS
             Код комнаты: <b>{room.code}</b>
           </span>
           {admin && <InviteLink code={room.code} />}
+          <button
+            className="link-btn leave-btn"
+            title={admin ? 'Комната будет закрыта для всех участников' : 'Вернуться на стартовый экран'}
+            onClick={onLeave}
+          >
+            Покинуть комнату
+          </button>
           {!connected && (
             <span className="badge-warn">
               Нет соединения
@@ -112,6 +128,7 @@ export default function RoomScreen({ room, connected, error, onDismissError, onS
                   <div className="vote-value">{p.vote ?? '—'}</div>
                   <div className="vote-name">
                     <Avatar name={p.name} id={p.id} size={22} />
+                    {p.connected === false && <OfflineIcon />}
                     <span>
                       {p.name}
                       {p.role === 'admin' && (
@@ -163,6 +180,7 @@ export default function RoomScreen({ room, connected, error, onDismissError, onS
             return (
               <li key={p.id} className={isMe ? 'me' : undefined}>
                 <Avatar name={p.name} id={p.id} size={28} />
+                {p.connected === false && <OfflineIcon />}
                 <span className="p-name">
                   {p.name}
                   {isMe && <span className="me-badge">вы</span>}

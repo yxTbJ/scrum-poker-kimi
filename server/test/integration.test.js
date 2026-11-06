@@ -360,10 +360,12 @@ test('после вскрытия голос отключившегося уча
   user.close();
   await new Promise((r) => setTimeout(r, 500)); // дольше окна отключения
 
-  // его голос остался и засчитывается в статистике
+  // его голос остался и засчитывается в статистике; участник помечен как офлайн
   const state = admin.lastState();
   assert.equal(state.participants.length, 2);
   assert.equal(participantByName(state, 'Боря').vote, 10);
+  assert.equal(participantByName(state, 'Боря').connected, false);
+  assert.equal(participantByName(state, 'Аня').connected, true);
   assert.equal(state.stats.total.votes, 2);
   assert.equal(state.stats.total.average, 15);
   assert.equal(state.stats.byRole.developer.average, 20);
@@ -378,6 +380,37 @@ test('после вскрытия голос отключившегося уча
   assert.ok(!participantByName(reset.room, 'Боря'));
 
   admin.close();
+});
+
+test('выход из комнаты: участник удаляется сразу, выход админа закрывает комнату', async () => {
+  const created = await postJson('/api/rooms', { name: 'Аня', jobRole: 'developer' });
+  const joined = await postJson(`/api/rooms/${created.data.code}/join`, { name: 'Боря', jobRole: 'qa' });
+  const admin = connectClient(created.data.token);
+  const user = connectClient(joined.data.token);
+  await Promise.all([admin.opened, user.opened]);
+  await admin.waitFor((m) => m.type === 'state' && m.room.participants.length === 2);
+
+  // участник нажимает «Покинуть комнату» — удалён немедленно, без окна ожидания
+  let mark = admin.messages.length;
+  user.send({ type: 'leave' });
+  const afterLeave = await admin.waitFor(
+    (m) => m.type === 'state' && m.room.participants.length === 1 && !participantByName(m.room, 'Боря'),
+    { after: mark },
+  );
+  assert.equal(participantByName(afterLeave.room, 'Аня').role, 'admin');
+
+  // Вова подключается; админ выходит — комната закрыта для всех
+  const joined2 = await postJson(`/api/rooms/${created.data.code}/join`, { name: 'Вова', jobRole: 'other' });
+  const user2 = connectClient(joined2.data.token);
+  await user2.opened;
+  mark = user2.messages.length;
+  admin.send({ type: 'leave' });
+  const closed = await user2.waitFor((m) => m.type === 'room_closed', { after: mark, timeout: 3000 });
+  assert.match(closed.message, /Администратор/i);
+
+  const rejoin = await postJson(`/api/rooms/${created.data.code}/join`, { name: 'Гена', jobRole: 'qa' });
+  assert.equal(rejoin.status, 404);
+  user2.close();
 });
 
 test('невалидный токен WS отклоняется', async () => {

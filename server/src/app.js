@@ -89,7 +89,12 @@ export function createApp({ store = createRoomStore(), disconnectGraceMs = 30_00
     if (!room || !sockets) return;
     for (const ws of sockets) {
       const participant = room.participants.get(ws.ctx.participantId);
-      if (participant) sendTo(ws, { type: 'state', room: store.publicState(room, participant) });
+      if (!participant) continue;
+      const state = store.publicState(room, participant);
+      for (const p of state.participants) {
+        p.connected = socketsOfParticipant(roomCode, p.id).length > 0;
+      }
+      sendTo(ws, { type: 'state', room: state });
     }
   }
 
@@ -221,6 +226,16 @@ export function createApp({ store = createRoomStore(), disconnectGraceMs = 30_00
     }
 
     let error = null;
+    if (message.type === 'leave') {
+      // явный выход: без окна на переподключение; админ закрывает комнату
+      if (participant.role === 'admin') {
+        closeRoom(roomCode, 'Администратор завершил комнату');
+      } else {
+        store.removeParticipant(room, participant);
+        broadcast(roomCode);
+      }
+      return;
+    }
     switch (message.type) {
       case 'start_session':
         error = store.startSession(room, participant);
@@ -298,6 +313,8 @@ export function createApp({ store = createRoomStore(), disconnectGraceMs = 30_00
         sockets.delete(ws);
         if (sockets.size === 0) conns.delete(roomCode);
       }
+      // рассылаем обновлённые флаги connected (у отключившегося — false)
+      broadcast(roomCode);
       if (socketsOfParticipant(roomCode, participantId).length === 0) {
         scheduleDisconnect(roomCode, participantId);
       }

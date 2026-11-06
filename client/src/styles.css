@@ -198,6 +198,26 @@ input:focus {
   border-style: dashed;
 }
 
+.leave-btn {
+  color: var(--danger-text);
+  border-color: var(--danger-border);
+}
+
+.leave-btn:hover {
+  border-color: var(--danger);
+}
+
+.offline-icon {
+  display: inline-flex;
+  align-items: center;
+  color: #b45309;
+  flex-shrink: 0;
+}
+
+.vote-name .offline-icon {
+  margin-top: 1px;
+}
+
 .badge-warn {
   display: inline-flex;
   align-items: center;

@@ -64,8 +64,26 @@ export default function App() {
     wsRef.current = ws;
   }, []);
 
-  const enterRoom = useCallback(
-    (roomCode, token, initialState) => {
+  const leaveRoom = useCallback((message = '') => {
+    const current = sessionRef.current;
+    if (wsRef.current) {
+      wsRef.current.close();
+      wsRef.current = null;
+    }
+    if (current) {
+      const session = loadStoredSession();
+      if (session?.code === current.code) localStorage.removeItem(STORAGE_SESSION);
+      sessionStorage.removeItem(`scrum-poker:${current.code}`);
+      sessionRef.current = null;
+    }
+    history.replaceState(null, '', '/');
+    setRoom(null);
+    setView('entry');
+    setConnected(false);
+    if (message) setError(message);
+  }, []);
+
+  const enterRoom = useCallback((roomCode, token, initialState) => {
       const me = initialState.participants?.find((p) => p.id === initialState.you?.id);
       const displayName = me?.name ?? '';
       if (displayName) {
@@ -95,22 +113,24 @@ export default function App() {
     let roomCode = param?.trim().toUpperCase() ?? '';
     let token = null;
     let storedName = null;
+    const session = loadStoredSession();
+
+    // Ссылка ведёт в другую комнату, чем сохранённая сессия: автоматического
+    // входа нет — показываем стартовый экран с кодом из ссылки.
+    if (roomCode && session && session.code !== roomCode) {
+      setCode(roomCode);
+      return undefined;
+    }
 
     if (roomCode) {
       // код из ссылки подставляем всегда — даже если токена ещё нет
       setCode(roomCode);
       token = sessionStorage.getItem(`scrum-poker:${roomCode}`);
-      if (!token) {
-        const session = loadStoredSession();
-        if (session?.code === roomCode) token = session.token;
-      }
-    } else {
-      const session = loadStoredSession();
-      if (session) {
-        roomCode = session.code;
-        token = session.token;
-        storedName = session.name;
-      }
+      if (!token && session?.code === roomCode) token = session.token;
+    } else if (session) {
+      roomCode = session.code;
+      token = session.token;
+      storedName = session.name;
     }
 
     if (!roomCode || !token) return undefined;
@@ -129,12 +149,24 @@ export default function App() {
     probe.onclose = () => {
       if (!entered) {
         sessionStorage.removeItem(`scrum-poker:${roomCode}`);
-        const session = loadStoredSession();
-        if (session?.code === roomCode) localStorage.removeItem(STORAGE_SESSION);
+        const current = loadStoredSession();
+        if (current?.code === roomCode) localStorage.removeItem(STORAGE_SESSION);
       }
     };
     return () => probe.close();
   }, [enterRoom]);
+
+  // Навигация «назад/вперёд» в комнату, отличную от текущей, — на стартовый экран
+  useEffect(() => {
+    const onPopState = () => {
+      const urlCode = new URLSearchParams(location.search).get('room')?.trim().toUpperCase() ?? '';
+      if (urlCode && sessionRef.current && urlCode !== sessionRef.current.code) {
+        leaveRoom();
+      }
+    };
+    window.addEventListener('popstate', onPopState);
+    return () => window.removeEventListener('popstate', onPopState);
+  }, [leaveRoom]);
 
   const submit = async (action) => {
     setError('');
@@ -185,6 +217,10 @@ export default function App() {
         onSend={send}
         onReconnect={() => {
           if (sessionRef.current) connectWs(sessionRef.current.token);
+        }}
+        onLeave={() => {
+          send({ type: 'leave' });
+          leaveRoom();
         }}
       />
     );
