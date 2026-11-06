@@ -154,7 +154,7 @@ export function createApp({ store = createRoomStore(), disconnectGraceMs = 30_00
       if (url.pathname === '/api/rooms' && req.method === 'POST') {
         const body = await readJsonBody(req);
         try {
-          const { token, state } = store.createRoom(body.name);
+          const { token, state } = store.createRoom(body.name, body.jobRole);
           sendJson(res, 201, { code: state.code, token, state });
         } catch (error) {
           sendJson(res, error.status ?? 400, { error: error.message });
@@ -166,7 +166,7 @@ export function createApp({ store = createRoomStore(), disconnectGraceMs = 30_00
       if (joinMatch && req.method === 'POST') {
         const body = await readJsonBody(req);
         try {
-          const { token, state } = store.joinRoom(joinMatch[1].toUpperCase(), body.name);
+          const { token, state } = store.joinRoom(joinMatch[1].toUpperCase(), body.name, body.jobRole);
           sendJson(res, 201, { token, state });
         } catch (error) {
           sendJson(res, error.status ?? 400, { error: error.message });

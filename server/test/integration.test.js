@@ -8,7 +8,7 @@ let baseUrl;
 let wsUrl;
 
 test.before(async () => {
-  // Короткое окно отключения, чтобы тесты не ждали минуту
+  // Короткое окно отключения, чтобы тесты не ждали полминуты
   app = createApp({ disconnectGraceMs: 150 });
   await new Promise((resolve) => app.server.listen(0, '127.0.0.1', resolve));
   const { port } = app.server.address();
@@ -93,23 +93,28 @@ const participantByName = (state, name) =>
   state.participants.find((p) => p.name === name);
 
 test('полный сценарий: сессия, роли, набор карт, голосование', async () => {
-  // Администратор создаёт комнату
-  const created = await postJson('/api/rooms', { name: 'Аня' });
+  // Администратор создаёт комнату (роль обязательна)
+  const created = await postJson('/api/rooms', { name: 'Аня', jobRole: 'developer' });
   assert.equal(created.status, 201);
   assert.equal(created.data.state.you.role, 'admin');
   assert.equal(created.data.state.deck.length, 30);
   assert.equal(created.data.state.sessionActive, false);
+  assert.equal(participantByName(created.data.state, 'Аня').jobRole, 'developer');
   const roomCode = created.data.code;
   const adminToken = created.data.token;
 
-  // REST-валидация: имя обязательно, комната должна существовать
-  const emptyName = await postJson('/api/rooms', { name: '   ' });
+  // REST-валидация: имя и роль обязательны, комната должна существовать
+  const emptyName = await postJson('/api/rooms', { name: '   ', jobRole: 'qa' });
   assert.equal(emptyName.status, 400);
-  const unknownRoom = await postJson('/api/rooms/ZZZZZZ/join', { name: 'Вова' });
+  const noRole = await postJson('/api/rooms', { name: 'Вова' });
+  assert.equal(noRole.status, 400);
+  const badRole = await postJson('/api/rooms', { name: 'Вова', jobRole: 'boss' });
+  assert.equal(badRole.status, 400);
+  const unknownRoom = await postJson('/api/rooms/ZZZZZZ/join', { name: 'Вова', jobRole: 'other' });
   assert.equal(unknownRoom.status, 404);
 
   // Участник входит по коду
-  const joined = await postJson(`/api/rooms/${roomCode}/join`, { name: 'Боря' });
+  const joined = await postJson(`/api/rooms/${roomCode}/join`, { name: 'Боря', jobRole: 'qa' });
   assert.equal(joined.status, 201);
   const userId = joined.data.state.you.id;
   const userToken = joined.data.token;
@@ -123,6 +128,7 @@ test('полный сценарий: сессия, роли, набор карт
   let state = admin.lastState();
   assert.equal(participantByName(state, 'Аня').role, 'admin');
   assert.equal(participantByName(state, 'Боря').role, 'participant');
+  assert.equal(participantByName(state, 'Боря').jobRole, 'qa');
 
   // Администратор настраивает набор: оставляет 1, 2, 3, 10 и добавляет 45
   let mark = user.messages.length;
@@ -172,6 +178,14 @@ test('полный сценарий: сессия, роли, набор карт
   admin.send({ type: 'vote', value: 45 });
   await user.waitFor((m) => m.type === 'state' && m.room.participants.every((p) => p.voted));
 
+  // До вскрытия статистика есть, но средние скрыты
+  state = user.lastState();
+  assert.equal(state.stats.total.votes, 2);
+  assert.equal(state.stats.total.average, null);
+  assert.equal(state.stats.byRole.developer.votes, 1);
+  assert.equal(state.stats.byRole.qa.votes, 1);
+  assert.equal(state.stats.byRole.developer.average, null);
+
   // Участник очищает свой голос — статус возвращается к «думает»
   mark = user.messages.length;
   user.send({ type: 'clear_vote' });
@@ -182,14 +196,12 @@ test('полный сценарий: сессия, роли, набор карт
   assert.equal(participantByName(cleared.room, 'Боря').vote, null);
 
   // Голосует заново
-  mark = user.messages.length;
   user.send({ type: 'vote', value: 10 });
   const reVoted = await user.waitFor(
     (m) => m.type === 'state' && m.room.participants.every((p) => p.voted),
-    { after: mark },
   );
 
-  // Свой голос виден до вскрытия, чужой скрыт (проверяем по самому свежему состоянию)
+  // Свой голос виден до вскрытия, чужой скрыт (проверяем по самому сообщению)
   state = reVoted.room;
   assert.equal(participantByName(state, 'Боря').vote, 10);
   assert.equal(participantByName(state, 'Аня').vote, null);
@@ -200,10 +212,18 @@ test('полный сценарий: сессия, роли, набор карт
   await user.waitForError(/администратор/i, mark);
   assert.equal(user.lastState().revealed, false);
 
-  // Администратор вскрывает карты, среднее рассчитано верно
+  // Администратор вскрывает карты: среднее общее и по ролям рассчитаны верно
   admin.send({ type: 'reveal' });
   const revealed = await user.waitFor((m) => m.type === 'state' && m.room.revealed);
   assert.equal(revealed.room.average, 27.5);
+  assert.equal(revealed.room.stats.total.average, 27.5);
+  assert.equal(revealed.room.stats.total.votes, 2);
+  assert.equal(revealed.room.stats.byRole.developer.average, 45);
+  assert.equal(revealed.room.stats.byRole.developer.votes, 1);
+  assert.equal(revealed.room.stats.byRole.qa.average, 10);
+  assert.equal(revealed.room.stats.byRole.qa.votes, 1);
+  assert.equal(revealed.room.stats.byRole.other.average, null);
+  assert.equal(revealed.room.stats.byRole.other.votes, 0);
   assert.equal(participantByName(revealed.room, 'Боря').vote, 10);
   assert.equal(participantByName(revealed.room, 'Аня').vote, 45);
 
@@ -226,6 +246,7 @@ test('полный сценарий: сессия, роли, набор карт
   );
   assert.equal(resetState.room.sessionActive, true);
   assert.equal(resetState.room.average, null);
+  assert.equal(resetState.room.stats.total.votes, 0);
   assert.deepEqual(resetState.room.deck, [1, 2, 3, 10, 45]);
 
   // После сброса можно голосовать снова
@@ -268,8 +289,8 @@ test('полный сценарий: сессия, роли, набор карт
 });
 
 test('закрытие вкладки: участник покидает комнату, уход админа её закрывает', async () => {
-  const created = await postJson('/api/rooms', { name: 'Аня' });
-  const joined = await postJson(`/api/rooms/${created.data.code}/join`, { name: 'Боря' });
+  const created = await postJson('/api/rooms', { name: 'Аня', jobRole: 'developer' });
+  const joined = await postJson(`/api/rooms/${created.data.code}/join`, { name: 'Боря', jobRole: 'other' });
   const admin = connectClient(created.data.token);
   const user = connectClient(joined.data.token);
   await Promise.all([admin.opened, user.opened]);
@@ -284,7 +305,7 @@ test('закрытие вкладки: участник покидает ком�
   assert.equal(participantByName(withoutUser.room, 'Аня').role, 'admin');
 
   // Вова подключается; админ закрывает вкладку — комната закрывается для всех
-  const joined2 = await postJson(`/api/rooms/${created.data.code}/join`, { name: 'Вова' });
+  const joined2 = await postJson(`/api/rooms/${created.data.code}/join`, { name: 'Вова', jobRole: 'qa' });
   const user2 = connectClient(joined2.data.token);
   await user2.opened;
   admin.close();
@@ -292,14 +313,14 @@ test('закрытие вкладки: участник покидает ком�
   assert.match(closed.message, /Администратор/i);
 
   // комната удалена: вход по коду невозможен
-  const rejoin = await postJson(`/api/rooms/${created.data.code}/join`, { name: 'Гена' });
+  const rejoin = await postJson(`/api/rooms/${created.data.code}/join`, { name: 'Гена', jobRole: 'qa' });
   assert.equal(rejoin.status, 404);
   user2.close();
 });
 
 test('переподключение в пределах окна отключения сохраняет участника', async () => {
-  const created = await postJson('/api/rooms', { name: 'Аня' });
-  const joined = await postJson(`/api/rooms/${created.data.code}/join`, { name: 'Боря' });
+  const created = await postJson('/api/rooms', { name: 'Аня', jobRole: 'developer' });
+  const joined = await postJson(`/api/rooms/${created.data.code}/join`, { name: 'Боря', jobRole: 'qa' });
   const admin = connectClient(created.data.token);
   const user = connectClient(joined.data.token);
   await Promise.all([admin.opened, user.opened]);

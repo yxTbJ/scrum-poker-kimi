@@ -9,7 +9,7 @@ async function postJson(path, body) {
   return data;
 }
 
-export const createRoom = (name) => postJson('/api/rooms', { name });
+export const createRoom = (name, jobRole) => postJson('/api/rooms', { name, jobRole });
 
-export const joinRoom = (code, name) =>
-  postJson(`/api/rooms/${encodeURIComponent(code)}/join`, { name });
+export const joinRoom = (code, name, jobRole) =>
+  postJson(`/api/rooms/${encodeURIComponent(code)}/join`, { name, jobRole });

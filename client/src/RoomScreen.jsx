@@ -3,6 +3,7 @@ import Avatar from './Avatar.jsx';
 import DeckSettings from './DeckSettings.jsx';
 import VoteChart from './VoteChart.jsx';
 import PieChart from './PieChart.jsx';
+import { JOB_ROLES, JOB_ROLE_SHORT } from './roles.js';
 
 const InviteLink = ({ code }) => {
   const [copied, setCopied] = useState(false);
@@ -27,6 +28,49 @@ const voteStatus = (p, revealed) => {
   if (revealed) return p.vote ?? '—';
   return p.voted ? '✓ проголосовал' : 'думает…';
 };
+
+const CHART_GROUPS = [
+  { key: 'all', label: 'Все' },
+  { key: 'developer', label: JOB_ROLES.developer },
+  { key: 'qa', label: JOB_ROLES.qa },
+  { key: 'other', label: JOB_ROLES.other },
+];
+
+// Диаграммы с переключением группы: общие или отдельно по ролям
+function ChartsPanel({ room }) {
+  const [group, setGroup] = useState('all');
+  const participants =
+    group === 'all' ? room.participants : room.participants.filter((p) => p.jobRole === group);
+  const votesCount = participants.filter((p) => p.vote !== null && p.vote !== undefined).length;
+  const stats = group === 'all' ? room.stats.total : room.stats.byRole[group];
+
+  return (
+    <div className="charts">
+      <div className="chart-tabs">
+        {CHART_GROUPS.map((g) => (
+          <button
+            key={g.key}
+            className={group === g.key ? 'tab active' : 'tab'}
+            onClick={() => setGroup(g.key)}
+          >
+            {g.label}
+          </button>
+        ))}
+      </div>
+      <div className="chart-group-avg">
+        Среднее по группе: <b>{stats?.average ?? '—'}</b> · голосов: {stats?.votes ?? 0}
+      </div>
+      {votesCount > 0 ? (
+        <div className="charts-row">
+          <VoteChart participants={participants} />
+          <PieChart participants={participants} />
+        </div>
+      ) : (
+        <p className="hint chart-empty">В этой группе нет голосов</p>
+      )}
+    </div>
+  );
+}
 
 export default function RoomScreen({ room, connected, error, onDismissError, onSend, onReconnect }) {
   const admin = room.you.role === 'admin';
@@ -86,6 +130,14 @@ export default function RoomScreen({ room, connected, error, onDismissError, onS
                 Среднее значение: <b>{room.average}</b>
               </div>
             )}
+            <div className="stats-chips">
+              {Object.entries(room.stats.byRole).map(([role, s]) => (
+                <span key={role} className="stat-chip">
+                  {JOB_ROLES[role]}: <b>{s.average ?? '—'}</b>
+                  <span className="stat-count">({s.votes})</span>
+                </span>
+              ))}
+            </div>
           </div>
         ) : (
           <div className="waiting">
@@ -114,6 +166,9 @@ export default function RoomScreen({ room, connected, error, onDismissError, onS
                 <span className="p-name">
                   {p.name}
                   {isMe && <span className="me-badge">вы</span>}
+                  <span className={`role-badge role-${p.jobRole}`} title={JOB_ROLES[p.jobRole]}>
+                    {JOB_ROLE_SHORT[p.jobRole]}
+                  </span>
                   {p.role === 'admin' && (
                     <span className="admin-star" title="Администратор">
                       {' '}
@@ -189,12 +244,7 @@ export default function RoomScreen({ room, connected, error, onDismissError, onS
         </div>
       )}
 
-      {room.revealed && (
-        <div className="charts">
-          <VoteChart participants={room.participants} />
-          <PieChart participants={room.participants} />
-        </div>
-      )}
+      {room.revealed && <ChartsPanel room={room} />}
     </div>
   );
 }

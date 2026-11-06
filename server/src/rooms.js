@@ -4,6 +4,8 @@ export const DECK_MIN = 1;
 export const DECK_MAX = 100;
 export const DECK_DEFAULT_SIZE = 30;
 
+export const JOB_ROLES = ['developer', 'qa', 'other'];
+
 export function defaultDeck() {
   return Array.from({ length: DECK_DEFAULT_SIZE }, (_, i) => i + DECK_MIN);
 }
@@ -24,6 +26,10 @@ export function validateDeck(deck) {
   return null;
 }
 
+export function isValidJobRole(role) {
+  return JOB_ROLES.includes(role);
+}
+
 export function sanitizeName(name) {
   if (typeof name !== 'string') return null;
   const trimmed = name.trim().replace(/\s+/g, ' ');
@@ -39,6 +45,11 @@ function httpError(status, message) {
 
 const CODE_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
 const CODE_LENGTH = 6;
+
+function averageOf(votes) {
+  if (votes.length === 0) return null;
+  return Math.round((votes.reduce((sum, v) => sum + v, 0) / votes.length) * 10) / 10;
+}
 
 export function createRoomStore() {
   const rooms = new Map();
@@ -70,22 +81,31 @@ export function createRoomStore() {
       id: p.id,
       name: p.name,
       role: p.role,
+      jobRole: p.jobRole,
       voted: p.vote !== null,
       vote: room.revealed || p.id === viewer.id ? p.vote : null,
     }));
-    const votes = [...room.participants.values()]
+    const allVotes = [...room.participants.values()]
       .filter((p) => p.vote !== null)
       .map((p) => p.vote);
-    const average =
-      room.revealed && votes.length > 0
-        ? Math.round((votes.reduce((sum, v) => sum + v, 0) / votes.length) * 10) / 10
-        : null;
+    const byRole = {};
+    for (const jobRole of JOB_ROLES) {
+      const votes = [...room.participants.values()]
+        .filter((p) => p.jobRole === jobRole && p.vote !== null)
+        .map((p) => p.vote);
+      byRole[jobRole] = {
+        votes: votes.length,
+        average: room.revealed ? averageOf(votes) : null,
+      };
+    }
+    const average = room.revealed ? averageOf(allVotes) : null;
     return {
       code: room.code,
       deck: [...room.deck],
       revealed: room.revealed,
       sessionActive: room.sessionActive,
       average,
+      stats: { total: { votes: allVotes.length, average }, byRole },
       participants,
       you: { id: viewer.id, role: viewer.role },
     };
@@ -103,11 +123,20 @@ export function createRoomStore() {
       return ctx;
     },
 
-    createRoom(adminName) {
+    createRoom(adminName, adminJobRole) {
       const name = sanitizeName(adminName);
       if (!name) throw httpError(400, 'Имя обязательно');
+      if (!isValidJobRole(adminJobRole)) {
+        throw httpError(400, 'Выберите роль: разработчик, QA или остальные сотрудники');
+      }
       const code = generateCode();
-      const admin = { id: crypto.randomUUID(), name, role: 'admin', vote: null };
+      const admin = {
+        id: crypto.randomUUID(),
+        name,
+        role: 'admin',
+        jobRole: adminJobRole,
+        vote: null,
+      };
       const room = {
         code,
         deck: defaultDeck(),
@@ -120,12 +149,21 @@ export function createRoomStore() {
       return { token, state: publicState(room, admin) };
     },
 
-    joinRoom(code, participantName) {
+    joinRoom(code, participantName, participantJobRole) {
       const room = rooms.get(code);
       if (!room) throw httpError(404, 'Комната не найдена');
       const name = sanitizeName(participantName);
       if (!name) throw httpError(400, 'Имя обязательно');
-      const participant = { id: crypto.randomUUID(), name, role: 'participant', vote: null };
+      if (!isValidJobRole(participantJobRole)) {
+        throw httpError(400, 'Выберите роль: разработчик, QA или остальные сотрудники');
+      }
+      const participant = {
+        id: crypto.randomUUID(),
+        name,
+        role: 'participant',
+        jobRole: participantJobRole,
+        vote: null,
+      };
       room.participants.set(participant.id, participant);
       const token = issueToken(code, participant.id);
       return { token, state: publicState(room, participant) };

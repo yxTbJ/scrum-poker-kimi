@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { createRoom, joinRoom } from './api.js';
+import { JOB_ROLES } from './roles.js';
 import RoomScreen from './RoomScreen.jsx';
 
 function wsUrlFor(token) {
@@ -22,6 +23,7 @@ function loadStoredSession() {
 export default function App() {
   const [view, setView] = useState('entry');
   const [name, setName] = useState(() => localStorage.getItem(STORAGE_NAME) ?? '');
+  const [jobRole, setJobRole] = useState('');
   const [code, setCode] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -140,10 +142,14 @@ export default function App() {
       setError('Введите имя');
       return;
     }
+    if (!jobRole) {
+      setError('Выберите роль');
+      return;
+    }
     setBusy(true);
     try {
       if (action === 'create') {
-        const res = await createRoom(name);
+        const res = await createRoom(name, jobRole);
         enterRoom(res.code, res.token, res.state);
       } else {
         const roomCode = code.trim().toUpperCase();
@@ -151,7 +157,7 @@ export default function App() {
           setError('Введите код комнаты');
           return;
         }
-        const res = await joinRoom(roomCode, name);
+        const res = await joinRoom(roomCode, name, jobRole);
         enterRoom(roomCode, res.token, res.state);
       }
     } catch (e) {
@@ -206,6 +212,24 @@ export default function App() {
             autoFocus
           />
         </label>
+
+        <div className="field">
+          <span>Ваша роль (обязательно)</span>
+          <div className="role-picker">
+            {Object.entries(JOB_ROLES).map(([value, label]) => (
+              <label key={value} className={jobRole === value ? 'role-option selected' : 'role-option'}>
+                <input
+                  type="radio"
+                  name="jobRole"
+                  value={value}
+                  checked={jobRole === value}
+                  onChange={() => setJobRole(value)}
+                />
+                {label}
+              </label>
+            ))}
+          </div>
+        </div>
 
         <button className="primary wide" type="submit" disabled={busy}>
           Создать комнату

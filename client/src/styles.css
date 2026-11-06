@@ -491,14 +491,125 @@ input:focus {
 
 .charts {
   display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  align-items: flex-start;
-  gap: 2rem;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
   background: var(--card-bg);
   border: 1px solid var(--border);
   border-radius: 16px;
   padding: 1.25rem;
+}
+
+.chart-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.4rem;
+}
+
+.chart-tabs .tab {
+  padding: 0.35rem 0.9rem;
+  border-radius: 999px;
+  font-size: 0.9rem;
+  color: var(--muted);
+}
+
+.chart-tabs .tab.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+.chart-group-avg {
+  font-size: 0.95rem;
+  color: var(--text);
+}
+
+.chart-empty {
+  margin: 0.5rem 0;
+}
+
+.charts-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: flex-start;
+  gap: 2rem;
+}
+
+/* Статистика по ролям */
+
+.stats-chips {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+.stat-chip {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 0.3rem 0.8rem;
+  font-size: 0.9rem;
+}
+
+.stat-count {
+  color: var(--muted);
+}
+
+/* Роли */
+
+.role-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.role-option {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.45rem 0.75rem;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.role-option:hover {
+  border-color: var(--accent);
+}
+
+.role-option.selected {
+  border-color: var(--accent);
+  background: #eff6ff;
+}
+
+.role-badge {
+  margin-left: 0.35rem;
+  font-size: 0.7rem;
+  font-weight: 600;
+  border-radius: 999px;
+  padding: 0.05rem 0.45rem;
+  vertical-align: middle;
+  text-transform: lowercase;
+}
+
+.role-badge.role-developer {
+  color: #1d4ed8;
+  background: #dbeafe;
+}
+
+.role-badge.role-qa {
+  color: #047857;
+  background: #d1fae5;
+}
+
+.role-badge.role-other {
+  color: #6b7280;
+  background: #e5e7eb;
 }
 
 .chart h3,
