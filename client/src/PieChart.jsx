@@ -1,13 +1,4 @@
-const COLORS = [
-  '#2563eb',
-  '#7c3aed',
-  '#db2777',
-  '#ea580c',
-  '#16a34a',
-  '#0891b2',
-  '#ca8a04',
-  '#dc2626',
-];
+import { CHART_COLORS } from './chartPalette.js';
 
 const RADIUS = 40;
 const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
@@ -29,7 +20,7 @@ export default function PieChart({ participants }) {
     const segment = {
       value,
       count,
-      color: COLORS[index % COLORS.length],
+      color: CHART_COLORS[index % CHART_COLORS.length],
       dasharray: `${fraction * CIRCUMFERENCE} ${CIRCUMFERENCE}`,
       dashoffset: -offset * CIRCUMFERENCE,
       percent: Math.round(fraction * 1000) / 10,
