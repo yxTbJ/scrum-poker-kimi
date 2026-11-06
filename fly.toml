@@ -15,8 +15,8 @@ primary_region = 'ams'
   # Критично для приложения с состоянием в памяти и WebSocket:
   # не останавливать машину при «простое» и держать одну машину включённой,
   # иначе соединения рвутся, а комнаты и токены теряются.
-  auto_stop_machines = true
-  auto_start_machines = false
+  auto_stop_machines = false
+  auto_start_machines = true
   min_machines_running = 1
 
 # Строго одна машина: состояние комнат в памяти, масштабирование недопустимо
