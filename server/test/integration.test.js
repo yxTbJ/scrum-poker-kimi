@@ -413,6 +413,51 @@ test('выход из комнаты: участник удаляется сра
   user2.close();
 });
 
+test('выход после вскрытия сохраняет участников и их голоса', async () => {
+  const created = await postJson('/api/rooms', { name: 'Аня', jobRole: 'developer' });
+  const joined = await postJson(`/api/rooms/${created.data.code}/join`, { name: 'Боря', jobRole: 'qa' });
+  const admin = connectClient(created.data.token);
+  const user = connectClient(joined.data.token);
+  await Promise.all([admin.opened, user.opened]);
+
+  admin.send({ type: 'start_session' });
+  await user.waitFor((m) => m.type === 'state' && m.room.sessionActive === true);
+  user.send({ type: 'vote', value: 10 });
+  admin.send({ type: 'vote', value: 20 });
+  await admin.waitFor((m) => m.type === 'state' && m.room.participants.every((p) => p.voted));
+  admin.send({ type: 'reveal' });
+  await user.waitFor((m) => m.type === 'state' && m.room.revealed);
+
+  // Боря выходит после вскрытия — остаётся в комнате вместе с голосом
+  user.send({ type: 'leave' });
+  user.close();
+  await new Promise((r) => setTimeout(r, 400));
+  const state = admin.lastState();
+  assert.equal(state.participants.length, 2);
+  assert.equal(participantByName(state, 'Боря').vote, 10);
+  assert.equal(participantByName(state, 'Боря').connected, false);
+  assert.equal(state.stats.total.average, 15);
+
+  // Вова подключается; админ выходит после вскрытия — комната не закрывается
+  const joined2 = await postJson(`/api/rooms/${created.data.code}/join`, { name: 'Вова', jobRole: 'other' });
+  const user2 = connectClient(joined2.data.token);
+  await user2.opened;
+  const mark = user2.messages.length;
+  admin.send({ type: 'leave' });
+  admin.close();
+  const st = await user2.waitFor(
+    (m) =>
+      m.type === 'state' &&
+      m.room.participants.length === 3 &&
+      participantByName(m.room, 'Аня')?.connected === false &&
+      participantByName(m.room, 'Боря')?.connected === false,
+    { after: mark, timeout: 3000 },
+  );
+  assert.equal(participantByName(st.room, 'Аня').vote, 20);
+  assert.equal(st.room.stats.total.average, 15);
+  user2.close();
+});
+
 test('невалидный токен WS отклоняется', async () => {
   const ws = new WebSocket(`${wsUrl}/ws?token=unknown`);
   const result = await new Promise((resolve) => {

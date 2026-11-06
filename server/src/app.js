@@ -227,8 +227,13 @@ export function createApp({ store = createRoomStore(), disconnectGraceMs = 30_00
 
     let error = null;
     if (message.type === 'leave') {
-      // явный выход: без окна на переподключение; админ закрывает комнату
-      if (participant.role === 'admin') {
+      // явный выход: без окна на переподключение. После вскрытия карт участник
+      // сохраняется вместе с голосом (он уже засчитан в результаты) — та же
+      // логика, что и при обрыве соединения; до вскрытия — удаление, а выход
+      // администратора закрывает комнату.
+      if (room.revealed) {
+        broadcast(roomCode);
+      } else if (participant.role === 'admin') {
         closeRoom(roomCode, 'Администратор завершил комнату');
       } else {
         store.removeParticipant(room, participant);
