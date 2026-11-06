@@ -26,10 +26,10 @@ export default function DeckSettings({ deck, onChange }) {
   };
 
   return (
-    <details className="deck-settings">
-      <summary>Набор карт ({deck.length} шт.)</summary>
+    <div className="deck-settings">
+      <h3 className="deck-settings-title">Набор карт ({deck.length} шт.)</h3>
       <p className="hint">
-        Изменение набора сбрасывает все голоса. Допустимы целые числа от 1 до 100 без повторов.
+        Допустимы целые числа от 1 до 100 без повторов. Изменение набора сбрасывает все голоса.
       </p>
       <div className="deck-chips">
         {deck.map((v) => (
@@ -59,6 +59,6 @@ export default function DeckSettings({ deck, onChange }) {
         </button>
       </div>
       {err && <p className="error-text">{err}</p>}
-    </details>
+    </div>
   );
 }

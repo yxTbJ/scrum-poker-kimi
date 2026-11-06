@@ -418,14 +418,16 @@ input:focus {
 
 .admin-actions {
   display: flex;
+  justify-content: center;
   gap: 0.5rem;
   flex-wrap: wrap;
 }
 
-.deck-settings summary {
-  cursor: pointer;
-  color: var(--muted);
+.deck-settings-title {
+  margin: 0;
   font-size: 0.95rem;
+  color: var(--muted);
+  text-align: center;
 }
 
 .deck-chips {
