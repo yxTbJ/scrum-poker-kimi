@@ -54,6 +54,20 @@ fly deploy
 
 Проверка: `curl https://scrum-poker-kimi.fly.dev/api/health` → `{"ok":true}`. Обновления — `git pull && fly deploy`.
 
+## Автодеплой из GitHub (GitHub Actions)
+
+В репозитории лежит `.github/workflows/deploy.yml` — при пуше в `main` GitHub Actions сам деплоит приложение на Fly. Нужно один раз:
+
+```bash
+# 1. Выполнить там, где flyctl авторизован (токен — только для этого приложения)
+fly tokens create deploy -a scrum-poker-kimi
+
+# 2. GitHub → репозиторий → Settings → Secrets and variables → Actions → New repository secret:
+#    имя FLY_API_TOKEN, значение — вывод команды выше
+```
+
+Каждый следующий пуш в `main` на GitHub запустит деплой (вкладка Actions). Помните: деплой пересоздаёт машину — комнаты сбрасываются, деплойте между сессиями.
+
 ## Деплой на VPS (интернет, автоматический HTTPS)
 
 Понадобятся: VPS с Ubuntu 24.04 (минимальный тарифа хватит) и домен с A-записью на IP сервера.
