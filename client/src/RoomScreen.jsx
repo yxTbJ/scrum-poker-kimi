@@ -24,6 +24,15 @@ const InviteLink = ({ code }) => {
   );
 };
 
+const OfflineIcon = () => (
+  <span className="offline-icon" title="Нет соединения">
+    <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+      <circle cx="8" cy="8" r="5.5" />
+      <line x1="4.2" y1="11.8" x2="11.8" y2="4.2" />
+    </svg>
+  </span>
+);
+
 const voteStatus = (p, revealed) => {
   if (revealed) return p.vote ?? '—';
   return p.voted ? '✓ проголосовал' : 'думает…';
@@ -35,6 +44,8 @@ const CHART_GROUPS = [
   { key: 'qa', label: JOB_ROLES.qa },
   { key: 'other', label: JOB_ROLES.other },
 ];
+
+const ROLE_ORDER = ['developer', 'qa', 'other'];
 
 // Диаграммы с переключением группы: общие или отдельно по ролям
 function ChartsPanel({ room }) {
@@ -72,20 +83,57 @@ function ChartsPanel({ room }) {
   );
 }
 
-const OfflineIcon = () => (
-  <span className="offline-icon" title="Нет соединения">
-    <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
-      <circle cx="8" cy="8" r="5.5" />
-      <line x1="4.2" y1="11.8" x2="11.8" y2="4.2" />
-    </svg>
-  </span>
-);
+function VoteCard({ p }) {
+  return (
+    <div className="vote-card">
+      <div className="vote-value">{p.vote ?? '—'}</div>
+      <div className="vote-name">
+        <Avatar name={p.name} id={p.id} size={22} />
+        {p.connected === false && <OfflineIcon />}
+        <span>
+          {p.name}
+          {p.role === 'admin' && (
+            <span className="admin-star" title="Администратор">
+              {' '}
+              ★
+            </span>
+          )}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+function ParticipantPill({ p, isMe, revealed }) {
+  return (
+    <li className={isMe ? 'me' : undefined}>
+      <Avatar name={p.name} id={p.id} size={28} />
+      {p.connected === false && <OfflineIcon />}
+      <span className="p-name">
+        {p.name}
+        {isMe && <span className="me-badge">вы</span>}
+        {p.role === 'admin' && (
+          <span className="admin-star" title="Администратор">
+            {' '}
+            ★
+          </span>
+        )}
+      </span>
+      <span
+        className={revealed ? 'status revealed-vote' : p.voted ? 'status voted' : 'status thinking'}
+      >
+        {voteStatus(p, revealed)}
+      </span>
+    </li>
+  );
+}
 
 export default function RoomScreen({ room, connected, error, onDismissError, onSend, onReconnect, onLeave }) {
   const admin = room.you.role === 'admin';
   const me = room.participants.find((p) => p.id === room.you.id);
   const votedCount = room.participants.filter((p) => p.voted).length;
   const canVote = room.sessionActive && !room.revealed;
+  const byRole = (role) => room.participants.filter((p) => p.jobRole === role);
 
   return (
     <div className="room">
@@ -122,38 +170,30 @@ export default function RoomScreen({ room, connected, error, onDismissError, onS
         {room.revealed ? (
           <div className="result">
             <h2>Карты вскрыты</h2>
-            <div className="votes">
-              {room.participants.map((p) => (
-                <div key={p.id} className="vote-card">
-                  <div className="vote-value">{p.vote ?? '—'}</div>
-                  <div className="vote-name">
-                    <Avatar name={p.name} id={p.id} size={22} />
-                    {p.connected === false && <OfflineIcon />}
-                    <span>
-                      {p.name}
-                      {p.role === 'admin' && (
-                        <span className="admin-star" title="Администратор">
-                          {' '}
-                          ★
-                        </span>
-                      )}
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </div>
             {room.average != null && (
               <div className="average">
                 Среднее значение: <b>{room.average}</b>
               </div>
             )}
-            <div className="stats-chips">
-              {Object.entries(room.stats.byRole).map(([role, s]) => (
-                <span key={role} className="stat-chip">
-                  {JOB_ROLES[role]}: <b>{s.average ?? '—'}</b>
-                  <span className="stat-count">({s.votes})</span>
-                </span>
-              ))}
+            <div className="results-by-role">
+              {ROLE_ORDER.map((role) => {
+                const group = byRole(role);
+                if (group.length === 0) return null;
+                const stats = room.stats.byRole[role];
+                return (
+                  <section key={role} className="role-result">
+                    <h3>
+                      {JOB_ROLES[role]}: <b>{stats.average ?? '—'}</b>
+                      <span className="stat-count"> ({stats.votes})</span>
+                    </h3>
+                    <div className="votes">
+                      {group.map((p) => (
+                        <VoteCard key={p.id} p={p} />
+                      ))}
+                    </div>
+                  </section>
+                );
+              })}
             </div>
           </div>
         ) : (
@@ -174,41 +214,29 @@ export default function RoomScreen({ room, connected, error, onDismissError, onS
           </div>
         )}
 
-        <ul className="participants">
-          {room.participants.map((p) => {
-            const isMe = p.id === room.you.id;
+        <div className="participants-grid">
+          {ROLE_ORDER.map((role) => {
+            const group = byRole(role);
+            if (group.length === 0) return null;
             return (
-              <li key={p.id} className={isMe ? 'me' : undefined}>
-                <Avatar name={p.name} id={p.id} size={28} />
-                {p.connected === false && <OfflineIcon />}
-                <span className="p-name">
-                  {p.name}
-                  {isMe && <span className="me-badge">вы</span>}
-                  <span className={`role-badge role-${p.jobRole}`} title={JOB_ROLES[p.jobRole]}>
-                    {JOB_ROLE_SHORT[p.jobRole]}
-                  </span>
-                  {p.role === 'admin' && (
-                    <span className="admin-star" title="Администратор">
-                      {' '}
-                      ★
-                    </span>
-                  )}
-                </span>
-                <span
-                  className={
-                    room.revealed
-                      ? 'status revealed-vote'
-                      : p.voted
-                        ? 'status voted'
-                        : 'status thinking'
-                  }
-                >
-                  {voteStatus(p, room.revealed)}
-                </span>
-              </li>
+              <section key={role} className="participant-group">
+                <h3>
+                  {JOB_ROLES[role]} <span className="stat-count">({group.length})</span>
+                </h3>
+                <ul className="participants">
+                  {group.map((p) => (
+                    <ParticipantPill
+                      key={p.id}
+                      p={p}
+                      isMe={p.id === room.you.id}
+                      revealed={room.revealed}
+                    />
+                  ))}
+                </ul>
+              </section>
             );
           })}
-        </ul>
+        </div>
       </main>
 
       {canVote && (

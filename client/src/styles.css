@@ -317,6 +317,38 @@ input:focus {
   margin-top: 0.5rem;
 }
 
+/* --- Результаты по ролям (после вскрытия) --- */
+
+.results-by-role {
+  margin-top: 1.25rem;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.role-result {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 0.9rem;
+  text-align: center;
+}
+
+.role-result h3 {
+  margin: 0 0 0.6rem;
+  font-size: 0.95rem;
+  color: var(--muted);
+}
+
+.role-result .votes {
+  margin: 0;
+}
+
+.stat-count {
+  color: var(--muted);
+  font-weight: 400;
+}
+
 /* --- Аватары --- */
 
 .avatar {
@@ -342,15 +374,29 @@ input:focus {
   line-height: 1;
 }
 
-/* --- Участники (облачка, 2 колонки) --- */
+/* --- Участники (3 колонки по ролям) --- */
+
+.participants-grid {
+  margin-top: 1.5rem;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.participant-group h3 {
+  margin: 0 0 0.5rem;
+  font-size: 0.9rem;
+  color: var(--muted);
+  text-align: center;
+}
 
 .participants {
   list-style: none;
-  margin: 1.5rem 0 0;
+  margin: 0;
   padding: 0;
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
 }
 
 .participants li {
@@ -578,28 +624,6 @@ input:focus {
   gap: 2rem;
 }
 
-/* Статистика по ролям */
-
-.stats-chips {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 0.5rem;
-  margin-top: 0.75rem;
-}
-
-.stat-chip {
-  background: var(--bg);
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  padding: 0.3rem 0.8rem;
-  font-size: 0.9rem;
-}
-
-.stat-count {
-  color: var(--muted);
-}
-
 /* Роли */
 
 .role-picker {
@@ -809,7 +833,8 @@ input:focus {
     align-items: flex-start;
   }
 
-  .participants {
+  .participants-grid,
+  .results-by-role {
     grid-template-columns: 1fr;
   }
 
