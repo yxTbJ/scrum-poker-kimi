@@ -60,7 +60,16 @@ export default function App() {
         setError(msg.message);
       }
     };
-    ws.onclose = () => setConnected(false);
+    ws.onclose = () => {
+      if (wsRef.current !== ws) return; // сокет заменён или закрыт намеренно
+      setConnected(false);
+      // автопереподключение, пока сессия жива (обрывы NAT/туннелей и т.п.)
+      if (sessionRef.current) {
+        setTimeout(() => {
+          if (wsRef.current === ws && sessionRef.current) connectWs(sessionRef.current.token);
+        }, 3000);
+      }
+    };
     wsRef.current = ws;
   }, []);
 

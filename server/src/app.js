@@ -280,6 +280,16 @@ export function createApp({ store = createRoomStore(), disconnectGraceMs = 30_00
   const server = http.createServer(handleHttp);
   const wss = new WebSocketServer({ noServer: true });
 
+  // Keep-alive: промежуточные звенья (NAT/роутеры, туннельные релеи) рвут
+  // простаивающие TCP-соединения через ~10–30 минут. Протокольный ping
+  // каждые 30 с держит соединение живым; браузер отвечает pong сам.
+  const pingTimer = setInterval(() => {
+    for (const ws of wss.clients) {
+      if (ws.readyState === ws.OPEN) ws.ping();
+    }
+  }, 30_000);
+  if (pingTimer.unref) pingTimer.unref();
+
   server.on('upgrade', (req, socket, head) => {
     let url;
     try {
