@@ -2,6 +2,8 @@ import { useState } from 'react';
 
 export default function DeckSettings({ deck, onChange }) {
   const [value, setValue] = useState('');
+  const [fromValue, setFromValue] = useState('');
+  const [toValue, setToValue] = useState('');
   const [err, setErr] = useState('');
 
   const remove = (v) => onChange(deck.filter((d) => d !== v));
@@ -23,6 +25,47 @@ export default function DeckSettings({ deck, onChange }) {
     setErr('');
     setValue('');
     onChange([...deck, n].sort((a, b) => a - b));
+  };
+
+  const parseRange = () => {
+    const from = Number(fromValue.trim());
+    const to = Number(toValue.trim());
+    if (
+      fromValue.trim() === '' ||
+      toValue.trim() === '' ||
+      !Number.isInteger(from) ||
+      !Number.isInteger(to)
+    ) {
+      setErr('Введите целые числа «От» и «До»');
+      return null;
+    }
+    if (from < 1 || to > 100 || from > to) {
+      setErr('Диапазон: целые от 1 до 100, «От» не больше «До»');
+      return null;
+    }
+    return { from, to };
+  };
+
+  // mode 'add' — добавить все карты диапазона, которых ещё нет;
+  // mode 'del' — удалить все существующие карты диапазона
+  const applyRange = (mode) => {
+    const range = parseRange();
+    if (!range) return;
+    let next = [...deck];
+    if (mode === 'add') {
+      for (let v = range.from; v <= range.to; v += 1) {
+        if (!next.includes(v)) next.push(v);
+      }
+      next.sort((a, b) => a - b);
+    } else {
+      next = next.filter((v) => v < range.from || v > range.to);
+      if (next.length === 0) {
+        setErr('Набор не может стать пустым — такой диапазон удалять нельзя');
+        return;
+      }
+    }
+    setErr('');
+    onChange(next);
   };
 
   return (
@@ -56,6 +99,28 @@ export default function DeckSettings({ deck, onChange }) {
         />
         <button type="button" onClick={add}>
           Добавить карту
+        </button>
+      </div>
+      <div className="deck-range">
+        <span className="range-label">Диапазон:</span>
+        <input
+          value={fromValue}
+          onChange={(e) => setFromValue(e.target.value)}
+          placeholder="От"
+          inputMode="numeric"
+        />
+        <span className="range-dash">—</span>
+        <input
+          value={toValue}
+          onChange={(e) => setToValue(e.target.value)}
+          placeholder="До"
+          inputMode="numeric"
+        />
+        <button type="button" onClick={() => applyRange('add')} title="Добавить все карты диапазона, которых ещё нет">
+          Добавить все
+        </button>
+        <button type="button" onClick={() => applyRange('del')} title="Удалить все существующие карты диапазона">
+          Удалить все
         </button>
       </div>
       {err && <p className="error-text">{err}</p>}

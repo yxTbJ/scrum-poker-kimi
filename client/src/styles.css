@@ -507,6 +507,27 @@ input:focus {
   width: 180px;
 }
 
+.deck-range {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-top: 0.25rem;
+}
+
+.range-label {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.deck-range input {
+  width: 72px;
+}
+
+.range-dash {
+  color: var(--muted);
+}
+
 /* --- Диаграммы (нижняя часть экрана) --- */
 
 .charts {
