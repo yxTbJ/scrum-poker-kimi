@@ -46,9 +46,19 @@ function httpError(status, message) {
 const CODE_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
 const CODE_LENGTH = 6;
 
-function averageOf(votes) {
+// Мода: значение (или значения при ничьей) с максимальным числом голосов.
+// Одиночный голос считается мажоритарным; если же голоса разбросаны
+// (ни у одного значения нет перевеса) — большинства нет, возвращаем null.
+function modeOf(votes) {
   if (votes.length === 0) return null;
-  return Math.round((votes.reduce((sum, v) => sum + v, 0) / votes.length) * 10) / 10;
+  const counts = new Map();
+  for (const v of votes) counts.set(v, (counts.get(v) ?? 0) + 1);
+  const max = Math.max(...counts.values());
+  if (max < 2 && votes.length > 1) return null;
+  return [...counts.entries()]
+    .filter(([, count]) => count === max)
+    .map(([value]) => value)
+    .sort((a, b) => a - b);
 }
 
 export function createRoomStore() {
@@ -95,17 +105,17 @@ export function createRoomStore() {
         .map((p) => p.vote);
       byRole[jobRole] = {
         votes: votes.length,
-        average: room.revealed ? averageOf(votes) : null,
+        mode: room.revealed ? modeOf(votes) : null,
       };
     }
-    const average = room.revealed ? averageOf(allVotes) : null;
+    const mode = room.revealed ? modeOf(allVotes) : null;
     return {
       code: room.code,
       deck: [...room.deck],
       revealed: room.revealed,
       sessionActive: room.sessionActive,
-      average,
-      stats: { total: { votes: allVotes.length, average }, byRole },
+      mode,
+      stats: { total: { votes: allVotes.length, mode }, byRole },
       participants,
       you: { id: viewer.id, role: viewer.role },
     };

@@ -38,6 +38,8 @@ const voteStatus = (p, revealed) => {
   return p.voted ? '✓ проголосовал' : 'думает…';
 };
 
+const modeText = (mode) => (mode && mode.length ? mode.join(' и ') : '—');
+
 const CHART_GROUPS = [
   { key: 'all', label: 'Все' },
   { key: 'developer', label: JOB_ROLES.developer },
@@ -69,7 +71,7 @@ function ChartsPanel({ room }) {
         ))}
       </div>
       <div className="chart-group-avg">
-        Среднее по группе: <b>{stats?.average ?? '—'}</b> · голосов: {stats?.votes ?? 0}
+        Большинство по группе: <b>{modeText(stats?.mode)}</b> · голосов: {stats?.votes ?? 0}
       </div>
       {votesCount > 0 ? (
         <div className="charts-row">
@@ -170,9 +172,9 @@ export default function RoomScreen({ room, connected, error, onDismissError, onS
         {room.revealed ? (
           <div className="result">
             <h2>Карты вскрыты</h2>
-            {room.average != null && (
+            {room.mode != null && room.mode.length > 0 && (
               <div className="average">
-                Среднее значение: <b>{room.average}</b>
+                Большинство выбрало: <b>{modeText(room.mode)}</b>
               </div>
             )}
             <div className="results-by-role">
@@ -183,7 +185,7 @@ export default function RoomScreen({ room, connected, error, onDismissError, onS
                 return (
                   <section key={role} className="role-result">
                     <h3>
-                      {JOB_ROLES[role]}: <b>{stats.average ?? '—'}</b>
+                      {JOB_ROLES[role]}: <b>{modeText(stats.mode)}</b>
                       <span className="stat-count"> ({stats.votes})</span>
                     </h3>
                     <div className="votes">

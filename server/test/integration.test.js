@@ -181,10 +181,10 @@ test('полный сценарий: сессия, роли, набор карт
   // До вскрытия статистика есть, но средние скрыты
   state = user.lastState();
   assert.equal(state.stats.total.votes, 2);
-  assert.equal(state.stats.total.average, null);
+  assert.equal(state.stats.total.mode, null);
   assert.equal(state.stats.byRole.developer.votes, 1);
   assert.equal(state.stats.byRole.qa.votes, 1);
-  assert.equal(state.stats.byRole.developer.average, null);
+  assert.equal(state.stats.byRole.developer.mode, null);
 
   // Участник очищает свой голос — статус возвращается к «думает»
   mark = user.messages.length;
@@ -215,14 +215,14 @@ test('полный сценарий: сессия, роли, набор карт
   // Администратор вскрывает карты: среднее общее и по ролям рассчитаны верно
   admin.send({ type: 'reveal' });
   const revealed = await user.waitFor((m) => m.type === 'state' && m.room.revealed);
-  assert.equal(revealed.room.average, 27.5);
-  assert.equal(revealed.room.stats.total.average, 27.5);
+  assert.equal(revealed.room.mode, null); // голоса разошлись — большинства нет
+  assert.equal(revealed.room.stats.total.mode, null);
   assert.equal(revealed.room.stats.total.votes, 2);
-  assert.equal(revealed.room.stats.byRole.developer.average, 45);
+  assert.deepEqual(revealed.room.stats.byRole.developer.mode, [45]);
   assert.equal(revealed.room.stats.byRole.developer.votes, 1);
-  assert.equal(revealed.room.stats.byRole.qa.average, 10);
+  assert.deepEqual(revealed.room.stats.byRole.qa.mode, [10]);
   assert.equal(revealed.room.stats.byRole.qa.votes, 1);
-  assert.equal(revealed.room.stats.byRole.other.average, null);
+  assert.equal(revealed.room.stats.byRole.other.mode, null);
   assert.equal(revealed.room.stats.byRole.other.votes, 0);
   assert.equal(participantByName(revealed.room, 'Боря').vote, 10);
   assert.equal(participantByName(revealed.room, 'Аня').vote, 45);
@@ -245,7 +245,7 @@ test('полный сценарий: сессия, роли, набор карт
     { after: mark },
   );
   assert.equal(resetState.room.sessionActive, true);
-  assert.equal(resetState.room.average, null);
+  assert.equal(resetState.room.mode, null);
   assert.equal(resetState.room.stats.total.votes, 0);
   assert.deepEqual(resetState.room.deck, [1, 2, 3, 10, 45]);
 
@@ -367,9 +367,10 @@ test('после вскрытия голос отключившегося уча
   assert.equal(participantByName(state, 'Боря').connected, false);
   assert.equal(participantByName(state, 'Аня').connected, true);
   assert.equal(state.stats.total.votes, 2);
-  assert.equal(state.stats.total.average, 15);
-  assert.equal(state.stats.byRole.developer.average, 20);
+  assert.equal(state.stats.total.mode, null); // 10 и 20 — большинства нет
+  assert.deepEqual(state.stats.byRole.developer.mode, [20]);
   assert.equal(state.stats.byRole.qa.votes, 1);
+  assert.deepEqual(state.stats.byRole.qa.mode, [10]);
 
   // новый раунд: сохранённый «призрак» удаляется
   admin.send({ type: 'reset' });
@@ -436,7 +437,7 @@ test('выход после вскрытия сохраняет участник
   assert.equal(state.participants.length, 2);
   assert.equal(participantByName(state, 'Боря').vote, 10);
   assert.equal(participantByName(state, 'Боря').connected, false);
-  assert.equal(state.stats.total.average, 15);
+  assert.equal(state.stats.total.mode, null); // 10 и 20 — большинства нет
 
   // Вова подключается; админ выходит после вскрытия — комната не закрывается
   const joined2 = await postJson(`/api/rooms/${created.data.code}/join`, { name: 'Вова', jobRole: 'other' });
@@ -454,8 +455,41 @@ test('выход после вскрытия сохраняет участник
     { after: mark, timeout: 3000 },
   );
   assert.equal(participantByName(st.room, 'Аня').vote, 20);
-  assert.equal(st.room.stats.total.average, 15);
+  assert.equal(st.room.stats.total.mode, null);
   user2.close();
+});
+
+test('большинство считается по категориям', async () => {
+  const created = await postJson('/api/rooms', { name: 'Аня', jobRole: 'developer' });
+  const joinedB = await postJson(`/api/rooms/${created.data.code}/join`, { name: 'Боря', jobRole: 'qa' });
+  const joinedV = await postJson(`/api/rooms/${created.data.code}/join`, { name: 'Вова', jobRole: 'developer' });
+  const admin = connectClient(created.data.token);
+  const borya = connectClient(joinedB.data.token);
+  const vova = connectClient(joinedV.data.token);
+  await Promise.all([admin.opened, borya.opened, vova.opened]);
+
+  admin.send({ type: 'start_session' });
+  await borya.waitFor((m) => m.type === 'state' && m.room.sessionActive === true);
+  admin.send({ type: 'vote', value: 20 });
+  vova.send({ type: 'vote', value: 10 });
+  borya.send({ type: 'vote', value: 10 });
+  await admin.waitFor((m) => m.type === 'state' && m.room.participants.every((p) => p.voted));
+  admin.send({ type: 'reveal' });
+  const revealed = await borya.waitFor((m) => m.type === 'state' && m.room.revealed);
+
+  // общее большинство: 10 из трёх голосов
+  assert.deepEqual(revealed.room.stats.total.mode, [10]);
+  // у разработчиков паритет (20 и 10) — большинства нет
+  assert.equal(revealed.room.stats.byRole.developer.mode, null);
+  // у QA один голос — он же и есть мажоритарный
+  assert.deepEqual(revealed.room.stats.byRole.qa.mode, [10]);
+  // остальных не было
+  assert.equal(revealed.room.stats.byRole.other.mode, null);
+  assert.equal(revealed.room.stats.byRole.other.votes, 0);
+
+  admin.close();
+  borya.close();
+  vova.close();
 });
 
 test('невалидный токен WS отклоняется', async () => {
