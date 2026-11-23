@@ -16,18 +16,18 @@
 
 [data-theme='dark'] {
   color-scheme: dark;
-  --bg: #0b1220;
-  --card-bg: #151f31;
-  --accent: #60a5fa;
-  --accent-dark: #3b82f6;
+  --bg: #000000;
+  --card-bg: #1c1c1e;
+  --accent: #e5e5e5;
+  --accent-dark: #c4c4c4;
   --danger: #f87171;
-  --danger-bg: #3b1113;
-  --danger-border: #5b1d20;
+  --danger-bg: #2a1516;
+  --danger-border: #4a2426;
   --danger-text: #fca5a5;
-  --text: #e2e8f0;
-  --muted: #94a3b8;
-  --border: #2b3a52;
-  --voted: #34d399;
+  --text: #f2f2f2;
+  --muted: #9a9aa0;
+  --border: #333338;
+  --voted: #4ade80;
 }
 
 * {
@@ -840,34 +840,34 @@ input:focus {
   }
 }
 
-/* --- Тёмная тема: доводка контраста --- */
+/* --- Тёмная тема: доводка контраста (чёрный фон, серые зоны) --- */
 
 [data-theme='dark'] .participants li.me {
-  background: #16233a;
+  background: #2a2a2e;
 }
 
 [data-theme='dark'] .me-badge {
-  color: #93c5fd;
-  background: #1e3a5f;
+  color: #e5e5e5;
+  background: #3a3a3f;
 }
 
 [data-theme='dark'] .role-option.selected {
-  background: #16233a;
+  background: #2a2a2e;
 }
 
 [data-theme='dark'] .role-badge.role-developer {
-  color: #93c5fd;
-  background: #1e3a5f;
+  color: #d4d4d8;
+  background: #333338;
 }
 
 [data-theme='dark'] .role-badge.role-qa {
-  color: #6ee7b7;
-  background: #064e3b;
+  color: #a1a1aa;
+  background: #2a2a2e;
 }
 
 [data-theme='dark'] .role-badge.role-other {
   color: var(--muted);
-  background: #2b3a52;
+  background: #26262b;
 }
 
 [data-theme='dark'] .badge-warn {
@@ -878,7 +878,7 @@ input:focus {
 
 [data-theme='dark'] .error-banner {
   color: var(--danger-text);
-  background: #3b1113;
+  background: #2a1516;
   border-color: var(--danger-border);
 }
 
@@ -886,8 +886,22 @@ input:focus {
   color: #fbbf24;
 }
 
-/* Кнопки: на светло-синем акценте тёмный текст читается лучше белого */
+/* Кнопки: светло-серый акцент с тёмным текстом */
 [data-theme='dark'] button.primary,
 [data-theme='dark'] .card.selected {
-  color: #0b1220;
+  color: #000;
+}
+
+/* Поля ввода и чипы — чёрные на серой панели */
+[data-theme='dark'] input {
+  background: #000;
+}
+
+[data-theme='dark'] .chip {
+  background: #000;
+}
+
+[data-theme='dark'] .vote-card,
+[data-theme='dark'] .role-result {
+  background: #000;
 }
