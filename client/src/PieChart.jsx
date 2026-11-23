@@ -3,7 +3,7 @@ import { CHART_COLORS } from './chartPalette.js';
 const RADIUS = 40;
 const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
 
-export default function PieChart({ participants }) {
+export default function PieChart({ participants, colorOffset = 0 }) {
   const votes = participants.filter((p) => p.vote !== null && p.vote !== undefined);
   const total = votes.length;
   if (total === 0) return null;
@@ -20,7 +20,7 @@ export default function PieChart({ participants }) {
     const segment = {
       value,
       count,
-      color: CHART_COLORS[index % CHART_COLORS.length],
+      color: CHART_COLORS[(index + colorOffset) % CHART_COLORS.length],
       dasharray: `${fraction * CIRCUMFERENCE} ${CIRCUMFERENCE}`,
       dashoffset: -offset * CIRCUMFERENCE,
       percent: Math.round(fraction * 1000) / 10,
@@ -31,7 +31,6 @@ export default function PieChart({ participants }) {
 
   return (
     <div className="pie">
-      <h3>Доля голосов</h3>
       <div className="pie-body">
         <div className="pie-chart">
           <svg viewBox="0 0 100 100">

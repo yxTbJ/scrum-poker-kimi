@@ -41,10 +41,17 @@ const modeText = (mode) => (mode && mode.length ? mode.join(' и ') : '—');
 
 const ROLE_ORDER = ['developer', 'qa', 'other'];
 
-// Три круговые диаграммы по ролям (общая не показывается)
+// Три круговые диаграммы по ролям (общая не показывается).
+// Сдвиг палитры случайный при каждом показе + кнопка перемешать.
 function RolePies({ room }) {
+  const [colorOffset, setColorOffset] = useState(() => Math.floor(Math.random() * 100));
   return (
     <div className="charts charts-pies">
+      <div className="charts-head">
+        <button className="link-btn shuffle-btn" onClick={() => setColorOffset(Math.floor(Math.random() * 100))}>
+          Перемешать цвета
+        </button>
+      </div>
       {ROLE_ORDER.map((role) => {
         const group = room.participants.filter((p) => p.jobRole === role);
         if (group.length === 0) return null;
@@ -57,7 +64,7 @@ function RolePies({ room }) {
               <span className="stat-count"> ({stats.votes})</span>
             </h3>
             {votesCount > 0 ? (
-              <PieChart participants={group} />
+              <PieChart participants={group} colorOffset={colorOffset} />
             ) : (
               <p className="hint chart-empty">Нет голосов</p>
             )}

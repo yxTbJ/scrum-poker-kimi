@@ -644,6 +644,17 @@ input:focus {
   gap: 1.25rem;
 }
 
+.charts-head {
+  grid-column: 1 / -1;
+  text-align: center;
+  margin-bottom: -0.5rem;
+}
+
+.shuffle-btn {
+  font-size: 0.85rem;
+  padding: 0.25rem 0.8rem;
+}
+
 .pie-block h3 {
   margin: 0 0 0.5rem;
   font-size: 0.95rem;
