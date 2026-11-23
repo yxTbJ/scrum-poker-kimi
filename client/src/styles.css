@@ -941,7 +941,10 @@ input:focus {
   background: #000;
 }
 
-[data-theme='dark'] .vote-card,
+[data-theme='dark'] .vote-card {
+  background: #1c1c1e;
+}
+
 [data-theme='dark'] .role-result {
   background: #000;
 }
