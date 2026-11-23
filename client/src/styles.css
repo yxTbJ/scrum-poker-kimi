@@ -306,10 +306,10 @@ input:focus {
 }
 
 .vote-card {
-  border: 1px solid var(--border);
+  border: 1px solid #d6dbe3;
   border-radius: 12px;
   padding: 0.75rem 1rem;
-  background: var(--bg);
+  background: var(--card-bg);
   min-width: 72px;
 }
 
@@ -959,6 +959,7 @@ input:focus {
 
 [data-theme='dark'] .vote-card {
   background: #1c1c1e;
+  border-color: #333338;
 }
 
 [data-theme='dark'] .role-result {
