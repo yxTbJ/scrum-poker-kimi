@@ -839,3 +839,55 @@ input:focus {
     flex-direction: column;
   }
 }
+
+/* --- Тёмная тема: доводка контраста --- */
+
+[data-theme='dark'] .participants li.me {
+  background: #16233a;
+}
+
+[data-theme='dark'] .me-badge {
+  color: #93c5fd;
+  background: #1e3a5f;
+}
+
+[data-theme='dark'] .role-option.selected {
+  background: #16233a;
+}
+
+[data-theme='dark'] .role-badge.role-developer {
+  color: #93c5fd;
+  background: #1e3a5f;
+}
+
+[data-theme='dark'] .role-badge.role-qa {
+  color: #6ee7b7;
+  background: #064e3b;
+}
+
+[data-theme='dark'] .role-badge.role-other {
+  color: var(--muted);
+  background: #2b3a52;
+}
+
+[data-theme='dark'] .badge-warn {
+  color: #fbbf24;
+  background: #3a2c07;
+  border-color: #6b5310;
+}
+
+[data-theme='dark'] .error-banner {
+  color: var(--danger-text);
+  background: #3b1113;
+  border-color: var(--danger-border);
+}
+
+[data-theme='dark'] .offline-icon {
+  color: #fbbf24;
+}
+
+/* Кнопки: на светло-синем акценте тёмный текст читается лучше белого */
+[data-theme='dark'] button.primary,
+[data-theme='dark'] .card.selected {
+  color: #0b1220;
+}
