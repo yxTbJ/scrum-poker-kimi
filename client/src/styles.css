@@ -18,13 +18,13 @@
   color-scheme: dark;
   --bg: #000000;
   --card-bg: #1c1c1e;
-  --accent: #e5e5e5;
-  --accent-dark: #c4c4c4;
+  --accent: #c9c9c9;
+  --accent-dark: #adadad;
   --danger: #f87171;
   --danger-bg: #2a1516;
   --danger-border: #4a2426;
   --danger-text: #fca5a5;
-  --text: #f2f2f2;
+  --text: #d4d4d8;
   --muted: #9a9aa0;
   --border: #333338;
   --voted: #4ade80;
@@ -858,7 +858,7 @@ input:focus {
 }
 
 [data-theme='dark'] .me-badge {
-  color: #e5e5e5;
+  color: #c9c9c9;
   background: #3a3a3f;
 }
 
@@ -901,7 +901,7 @@ input:focus {
 [data-theme='dark'] button.primary {
   background: #1d4ed8;
   border-color: #1d4ed8;
-  color: #fff;
+  color: #e8e8e8;
 }
 
 [data-theme='dark'] button.primary:hover {
@@ -912,7 +912,7 @@ input:focus {
 [data-theme='dark'] .card.selected {
   background: #1d4ed8;
   border-color: #1d4ed8;
-  color: #fff;
+  color: #e8e8e8;
 }
 
 /* Кнопки блока колоды: подписи серые, не белые */
@@ -941,6 +941,11 @@ input:focus {
 [data-theme='dark'] .pie-chart svg,
 [data-theme='dark'] .pie-dot {
   filter: brightness(1.3) saturate(1.25);
+}
+
+/* Инициалы на аватарках — не чисто белые */
+[data-theme='dark'] .avatar {
+  color: #ececec;
 }
 
 /* Поля ввода и чипы — чёрные на серой панели */
