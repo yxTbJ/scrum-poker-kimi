@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import Avatar from './Avatar.jsx';
 import DeckSettings from './DeckSettings.jsx';
-import VoteChart from './VoteChart.jsx';
 import PieChart from './PieChart.jsx';
 import { JOB_ROLES, JOB_ROLE_SHORT } from './roles.js';
 
@@ -40,47 +39,31 @@ const voteStatus = (p, revealed) => {
 
 const modeText = (mode) => (mode && mode.length ? mode.join(' и ') : '—');
 
-const CHART_GROUPS = [
-  { key: 'all', label: 'Все' },
-  { key: 'developer', label: JOB_ROLES.developer },
-  { key: 'qa', label: JOB_ROLES.qa },
-  { key: 'other', label: JOB_ROLES.other },
-];
-
 const ROLE_ORDER = ['developer', 'qa', 'other'];
 
-// Диаграммы с переключением группы: общие или отдельно по ролям
-function ChartsPanel({ room }) {
-  const [group, setGroup] = useState('all');
-  const participants =
-    group === 'all' ? room.participants : room.participants.filter((p) => p.jobRole === group);
-  const votesCount = participants.filter((p) => p.vote !== null && p.vote !== undefined).length;
-  const stats = group === 'all' ? room.stats.total : room.stats.byRole[group];
-
+// Три круговые диаграммы по ролям (общая не показывается)
+function RolePies({ room }) {
   return (
-    <div className="charts">
-      <div className="chart-tabs">
-        {CHART_GROUPS.map((g) => (
-          <button
-            key={g.key}
-            className={group === g.key ? 'tab active' : 'tab'}
-            onClick={() => setGroup(g.key)}
-          >
-            {g.label}
-          </button>
-        ))}
-      </div>
-      <div className="chart-group-avg">
-        Большинство по группе: <b>{modeText(stats?.mode)}</b> · голосов: {stats?.votes ?? 0}
-      </div>
-      {votesCount > 0 ? (
-        <div className="charts-row">
-          <VoteChart participants={participants} />
-          <PieChart participants={participants} />
-        </div>
-      ) : (
-        <p className="hint chart-empty">В этой группе нет голосов</p>
-      )}
+    <div className="charts charts-pies">
+      {ROLE_ORDER.map((role) => {
+        const group = room.participants.filter((p) => p.jobRole === role);
+        if (group.length === 0) return null;
+        const stats = room.stats.byRole[role];
+        const votesCount = group.filter((p) => p.vote !== null && p.vote !== undefined).length;
+        return (
+          <section key={role} className="pie-block">
+            <h3>
+              {JOB_ROLES[role]}: <b>{modeText(stats.mode)}</b>
+              <span className="stat-count"> ({stats.votes})</span>
+            </h3>
+            {votesCount > 0 ? (
+              <PieChart participants={group} />
+            ) : (
+              <p className="hint chart-empty">Нет голосов</p>
+            )}
+          </section>
+        );
+      })}
     </div>
   );
 }
@@ -135,7 +118,17 @@ export default function RoomScreen({ room, connected, error, onDismissError, onS
   const me = room.participants.find((p) => p.id === room.you.id);
   const votedCount = room.participants.filter((p) => p.voted).length;
   const canVote = room.sessionActive && !room.revealed;
+  const [sortDir, setSortDir] = useState('asc');
   const byRole = (role) => room.participants.filter((p) => p.jobRole === role);
+
+  // проголосовавшие сверху, отсортированные по значению; не голосовавшие — в конце
+  const sortByVote = (group) => {
+    if (!room.revealed) return group;
+    const voted = group.filter((p) => p.vote !== null && p.vote !== undefined);
+    const others = group.filter((p) => p.vote === null || p.vote === undefined);
+    voted.sort((a, b) => (sortDir === 'asc' ? a.vote - b.vote : b.vote - a.vote));
+    return [...voted, ...others];
+  };
 
   return (
     <div className="room">
@@ -171,7 +164,16 @@ export default function RoomScreen({ room, connected, error, onDismissError, onS
       <main className="table">
         {room.revealed ? (
           <div className="result">
-            <h2>Карты вскрыты</h2>
+            <div className="result-header">
+              <h2>Карты вскрыты</h2>
+              <button
+                className="link-btn sort-btn"
+                title="Порядок отображения проголосовавших"
+                onClick={() => setSortDir(sortDir === 'asc' ? 'desc' : 'asc')}
+              >
+                {sortDir === 'asc' ? '↑ по возрастанию' : '↓ по убыванию'}
+              </button>
+            </div>
             {room.mode != null && room.mode.length > 0 && (
               <div className="average">
                 Большинство выбрало: <b>{modeText(room.mode)}</b>
@@ -189,7 +191,7 @@ export default function RoomScreen({ room, connected, error, onDismissError, onS
                       <span className="stat-count"> ({stats.votes})</span>
                     </h3>
                     <div className="votes">
-                      {group.map((p) => (
+                      {sortByVote(group).map((p) => (
                         <VoteCard key={p.id} p={p} />
                       ))}
                     </div>
@@ -226,7 +228,7 @@ export default function RoomScreen({ room, connected, error, onDismissError, onS
                   {JOB_ROLES[role]} <span className="stat-count">({group.length})</span>
                 </h3>
                 <ul className="participants">
-                  {group.map((p) => (
+                  {sortByVote(group).map((p) => (
                     <ParticipantPill
                       key={p.id}
                       p={p}
@@ -292,7 +294,7 @@ export default function RoomScreen({ room, connected, error, onDismissError, onS
         </div>
       )}
 
-      {room.revealed && <ChartsPanel room={room} />}
+      {room.revealed && <RolePies room={room} />}
     </div>
   );
 }

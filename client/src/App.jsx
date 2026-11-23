@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { createRoom, joinRoom } from './api.js';
 import { JOB_ROLES } from './roles.js';
 import RoomScreen from './RoomScreen.jsx';
+import ThemeToggle from './ThemeToggle.jsx';
 
 function wsUrlFor(token) {
   const proto = location.protocol === 'https:' ? 'wss' : 'ws';
@@ -218,7 +219,9 @@ export default function App() {
 
   if (view === 'room' && room) {
     return (
-      <RoomScreen
+      <>
+        <ThemeToggle />
+        <RoomScreen
         room={room}
         connected={connected}
         error={error}
@@ -232,11 +235,13 @@ export default function App() {
           leaveRoom();
         }}
       />
+      </>
     );
   }
 
   return (
     <div className="entry">
+      <ThemeToggle />
       <form
         className="entry-card"
         onSubmit={(e) => {

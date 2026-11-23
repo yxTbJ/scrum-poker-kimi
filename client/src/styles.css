@@ -14,6 +14,22 @@
   --voted: #059669;
 }
 
+[data-theme='dark'] {
+  color-scheme: dark;
+  --bg: #0b1220;
+  --card-bg: #151f31;
+  --accent: #60a5fa;
+  --accent-dark: #3b82f6;
+  --danger: #f87171;
+  --danger-bg: #3b1113;
+  --danger-border: #5b1d20;
+  --danger-text: #fca5a5;
+  --text: #e2e8f0;
+  --muted: #94a3b8;
+  --border: #2b3a52;
+  --voted: #34d399;
+}
+
 * {
   box-sizing: border-box;
 }
@@ -79,7 +95,8 @@ input {
   padding: 0.5rem 0.75rem;
   border: 1px solid var(--border);
   border-radius: 8px;
-  background: #fff;
+  background: var(--card-bg);
+  color: var(--text);
 }
 
 input:focus {
@@ -166,7 +183,7 @@ input:focus {
 /* --- Комната --- */
 
 .room {
-  max-width: 900px;
+  max-width: 1400px;
   margin: 0 auto;
   padding: 1rem;
   display: flex;
@@ -374,13 +391,50 @@ input:focus {
   line-height: 1;
 }
 
-/* --- Участники (3 колонки по ролям) --- */
+/* --- Участники (3 колонки по ролям, во всю ширину) --- */
 
 .participants-grid {
   margin-top: 1.5rem;
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 1rem;
+  align-items: start;
+  gap: 1.25rem;
+}
+
+.theme-toggle {
+  position: fixed;
+  top: 0.75rem;
+  right: 0.75rem;
+  z-index: 50;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border-radius: 50%;
+  color: var(--muted);
+}
+
+.theme-toggle:hover {
+  color: var(--accent);
+}
+
+.result-header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.result-header h2 {
+  margin: 0;
+}
+
+.sort-btn {
+  font-size: 0.85rem;
+  padding: 0.25rem 0.7rem;
 }
 
 .participant-group h3 {
@@ -574,54 +628,32 @@ input:focus {
   color: var(--muted);
 }
 
-/* --- Диаграммы (нижняя часть экрана) --- */
+/* --- Диаграммы: круговые по ролям (нижняя часть экрана) --- */
 
 .charts {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.75rem;
   background: var(--card-bg);
   border: 1px solid var(--border);
   border-radius: 16px;
   padding: 1.25rem;
 }
 
-.chart-tabs {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 0.4rem;
+.charts-pies {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-items: start;
+  gap: 1.25rem;
 }
 
-.chart-tabs .tab {
-  padding: 0.35rem 0.9rem;
-  border-radius: 999px;
-  font-size: 0.9rem;
-  color: var(--muted);
-}
-
-.chart-tabs .tab.active {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: #fff;
-}
-
-.chart-group-avg {
+.pie-block h3 {
+  margin: 0 0 0.5rem;
   font-size: 0.95rem;
-  color: var(--text);
+  color: var(--muted);
+  text-align: center;
 }
 
 .chart-empty {
   margin: 0.5rem 0;
-}
-
-.charts-row {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  align-items: flex-start;
-  gap: 2rem;
+  text-align: center;
 }
 
 /* Роли */
@@ -683,58 +715,6 @@ input:focus {
   font-size: 0.95rem;
   color: var(--muted);
   text-align: center;
-}
-
-/* Вертикальные столбики */
-
-.chart {
-  min-width: 280px;
-}
-
-.chart-cols {
-  display: flex;
-  align-items: stretch;
-  gap: 0.75rem;
-  height: 170px;
-}
-
-.chart-col {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  min-width: 36px;
-}
-
-.chart-col-count {
-  height: 1.2em;
-  font-size: 0.85rem;
-  font-weight: 600;
-  color: var(--muted);
-}
-
-.chart-col-track {
-  flex: 1;
-  width: 100%;
-  max-width: 56px;
-  display: flex;
-  align-items: flex-end;
-  background: var(--bg);
-  border-radius: 6px;
-  overflow: hidden;
-}
-
-.chart-col-bar {
-  width: 100%;
-  background: var(--accent);
-  border-radius: 6px 6px 0 0;
-  min-height: 4px;
-  transition: height 0.3s ease;
-}
-
-.chart-col-value {
-  margin-top: 0.3rem;
-  font-weight: 600;
 }
 
 /* Круговая диаграмма */
@@ -827,15 +807,26 @@ input:focus {
   font-size: 0.85rem;
 }
 
+@media (max-width: 1250px) {
+  .participants-grid,
+  .results-by-role,
+  .charts-pies {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 800px) {
+  .participants-grid,
+  .results-by-role,
+  .charts-pies {
+    grid-template-columns: 1fr;
+  }
+}
+
 @media (max-width: 600px) {
   .room-header {
     flex-direction: column;
     align-items: flex-start;
-  }
-
-  .participants-grid,
-  .results-by-role {
-    grid-template-columns: 1fr;
   }
 
   .card {
